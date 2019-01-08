@@ -8,7 +8,7 @@ pub fn add_one(num: u32) -> u32 {
 
 #[derive(PartialEq)]
 #[derive(Debug)]
-enum OrderType {
+pub enum OrderType {
     Enter,
     Update,
     Cancel,
@@ -17,23 +17,23 @@ enum OrderType {
 
 #[derive(PartialEq)]
 #[derive(Debug)]
-enum TradeType {
+pub enum TradeType {
     Bid,
     Ask,
 }
 
-pub struct Order <T>  where T: Fn(f64) -> f64 {
-	trader_id: String,		// address of the trader
-	order_type: OrderType,	// Enter, Update, Cancel
-	trade_type: TradeType,  // Bid, Ask
-	p_low: u32,				// trader's low price
-	p_high: u32,			// trader's high price
-	function: T,			// trader's custom closure
+pub struct Order {
+	trader_id: String,				// address of the trader
+	order_type: OrderType,			// Enter, Update, Cancel
+	trade_type: TradeType,  		// Bid, Ask
+	p_low: u32,						// trader's low price
+	p_high: u32,					// trader's high price
+	function: Box<Fn(f64) -> f64>,	// trader's custom closure
 }
 
-impl<T> Order <T> where T: Fn(f64) -> f64 {
+impl Order {
     fn new(t_id: String, o_t: OrderType, t_t: TradeType, 
-    	    pl: u32, ph: u32, function: T) -> Order<T> {
+    	    pl: u32, ph: u32, function: Box<Fn(f64) -> f64>) -> Order {
     	Order {
     		trader_id: t_id,		
 			order_type: o_t,	
@@ -53,12 +53,12 @@ impl<T> Order <T> where T: Fn(f64) -> f64 {
 	/// Creates a closure from an array of floats. This closure is the 
 	/// equivalent to a polynomial. 
 	/// For example: coef = [3, 5, 4, 1] => 3x^3 + 5x^2 + 4x + 1
-    fn closure_from_coef(coefs: &'static [f64]) -> impl Fn(f64) -> f64 {
+    fn poly_clos_from_coef(coefs: &'static [f64]) -> Box<Fn(f64) -> f64> {
     	
     	let coefs = coefs.clone();
 
         // let x be a generic f64 input that closure will compute on
-        let iter = move |x: f64| {
+        let iter = Box::new(move |x: f64| -> f64 {
         	// rev since enumerate counts from 0 up, and we wish
         	// to extract out the index which corresponds to the poly's
         	// degree.
@@ -70,7 +70,7 @@ impl<T> Order <T> where T: Fn(f64) -> f64 {
         	    	eval
         	    })
         	    .sum()
-        };
+        });
         iter
     }
 
@@ -92,10 +92,10 @@ mod tests {
 			TradeType::Bid,
 			0,
 			100,
-			|x| {
+			Box::new(|x| {
 				println!("This is my closure");
 				x + 1 as f64
-			}
+			})
 
 		);
 
@@ -108,13 +108,11 @@ mod tests {
 	}
 
 	#[test]
-	fn test_closure_from_coef() {
+	fn test_poly_clos_from_coef() {
 		// [3, 5, 4, 1] => 3x^3 + 4x^2 + 5x + 1 
 		let coefs: &'static[f64] = &[3.0, 4.0, 5.0, 1.0];
-
-		println!("{:?}", coefs.iter().rev().enumerate());
 		
-		let closure = closure_from_coef(coefs);
+		let closure = poly_clos_from_coef(coefs);
 		assert_eq!(51.0, closure(2.0));
 		assert_eq!(133.0, closure(3.0));
 		assert_eq!(277.0, closure(4.0));
@@ -123,8 +121,8 @@ mod tests {
 		//x=3: 81 + 36 + 15 + 1 = 133
 		//x=4: 192+ 64 + 20 + 1 = 277
 
-		// 3x + 4
-		let closure = closure_from_coef(&[3.0, 4.0]);
+		// -3x + 4
+		let closure = poly_clos_from_coef(&[-3.0, 4.0]);
 
 		let mut order = Order::new(
 			String::from("trader_id"),
@@ -135,8 +133,8 @@ mod tests {
 			closure
 		);
 
-		assert_eq!(25.0, order.calculate(7.0));
-		assert_eq!(-11.0, order.calculate(-5.0));
+		assert_eq!(-17.0, order.calculate(7.0));
+		assert_eq!(19.0, order.calculate(-5.0));
 	}
 }
 
