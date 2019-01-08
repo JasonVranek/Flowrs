@@ -6,6 +6,7 @@ pub fn add_one(num: u32) -> u32 {
 	num + 1
 }
 
+// Enum for matching over order types
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub enum OrderType {
@@ -15,6 +16,7 @@ pub enum OrderType {
 }
 
 
+// Enum for matching over bid or ask
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub enum TradeType {
@@ -23,17 +25,22 @@ pub enum TradeType {
 }
 
 pub struct Order {
-	trader_id: String,				// address of the trader
-	order_type: OrderType,			// Enter, Update, Cancel
-	trade_type: TradeType,  		// Bid, Ask
-	p_low: u32,						// trader's low price
-	p_high: u32,					// trader's high price
-	function: Box<Fn(f64) -> f64>,	// trader's custom closure
+	trader_id: String,			// address of the trader
+	pub order_type: OrderType,	// Enter, Update, Cancel
+	pub trade_type: TradeType,  // Bid, Ask
+	pub p_low: f64,				// trader's low price
+	pub p_high: f64,			// trader's high price
+	function: Box<
+	    Fn(f64) -> f64 
+	    + Send 
+	    + Sync 
+	    + 'static>,	    		// trader's custom closure on heap
 }
 
 impl Order {
-    fn new(t_id: String, o_t: OrderType, t_t: TradeType, 
-    	    pl: u32, ph: u32, function: Box<Fn(f64) -> f64>) -> Order {
+    pub fn new(t_id: String, o_t: OrderType, t_t: TradeType, 
+    	    pl: f64, ph: f64, 
+    	    function: Box<Fn(f64) -> f64 + Send + Sync + 'static>) -> Order {
     	Order {
     		trader_id: t_id,		
 			order_type: o_t,	
@@ -45,7 +52,7 @@ impl Order {
     }
 
     // method for calling the order's closure
-    fn calculate(&mut self, arg: f64) -> f64 {
+    pub fn calculate(&mut self, arg: f64) -> f64 {
     	(self.function)(arg)
     }
 }
@@ -53,7 +60,9 @@ impl Order {
 	/// Creates a closure from an array of floats. This closure is the 
 	/// equivalent to a polynomial. 
 	/// For example: coef = [3, 5, 4, 1] => 3x^3 + 5x^2 + 4x + 1
-    fn poly_clos_from_coef(coefs: &'static [f64]) -> Box<Fn(f64) -> f64> {
+    pub fn poly_clos_from_coef(coefs: &'static [f64]) -> 
+        Box<Fn(f64) -> f64 + Send + Sync + 'static>
+    {
     	
     	let coefs = coefs.clone();
 
@@ -90,8 +99,8 @@ mod tests {
 			String::from("trader_id"),
 			OrderType::Enter,
 			TradeType::Bid,
-			0,
-			100,
+			0.0,
+			100.0,
 			Box::new(|x| {
 				println!("This is my closure");
 				x + 1 as f64
@@ -102,8 +111,8 @@ mod tests {
 		assert_eq!(order.trader_id, "trader_id");
 		assert_eq!(order.order_type, OrderType::Enter);
 		assert_eq!(order.trade_type, TradeType::Bid);
-		assert_eq!(order.p_low, 0);
-		assert_eq!(order.p_high, 100);
+		assert_eq!(order.p_low, 0.0);
+		assert_eq!(order.p_high, 100.0);
 		assert_eq!(order.calculate(5.0), 6.0);
 	}
 
@@ -128,8 +137,8 @@ mod tests {
 			String::from("trader_id"),
 			OrderType::Enter,
 			TradeType::Bid,
-			0,
-			100,
+			0.0,
+			100.0,
 			closure
 		);
 
