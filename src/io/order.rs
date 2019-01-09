@@ -22,7 +22,6 @@ pub enum TradeType {
     Ask,
 }
 
-// #[derive(Cmp)]
 pub struct Order {
 	pub trader_id: String,			// address of the trader
 	pub order_type: OrderType,	// Enter, Update, Cancel
@@ -57,16 +56,24 @@ impl Order {
     pub fn calculate(&mut self, arg: f64) -> f64 {
     	(self.function)(arg)
     }
+
+    pub fn describe(&self) {
+    	println!("Trader Id: {:?} \n OrderType: {:?}
+    		p_low: {:?}, p_high: {:?}", 
+    		self.trader_id, self.order_type,
+    		self.p_low, self.p_high);
+    }
 }
 
 	/// Creates a closure from an array of floats. This closure is the 
 	/// equivalent to a polynomial. 
 	/// For example: coef = [3, 5, 4, 1] => 3x^3 + 5x^2 + 4x + 1
-    pub fn poly_clos_from_coef(coefs: &'static [f64]) -> 
+    // pub fn poly_clos_from_coef(coefs: &'static [f64]) -> 
+    pub fn poly_clos_from_coef(coefs: Vec<f64>) -> 
         Box<Fn(f64) -> f64 + Send + Sync + 'static>
     {
     	
-    	let coefs = coefs.clone();
+    	// let coefs = coefs.clone();
 
         // let x be a generic f64 input that closure will compute on
         let iter = Box::new(move |x: f64| -> f64 {
@@ -121,9 +128,8 @@ mod tests {
 	#[test]
 	fn test_poly_clos_from_coef() {
 		// [3, 5, 4, 1] => 3x^3 + 4x^2 + 5x + 1 
-		let coefs: &'static[f64] = &[3.0, 4.0, 5.0, 1.0];
 		
-		let closure = poly_clos_from_coef(coefs);
+		let closure = poly_clos_from_coef(vec![3.0, 4.0, 5.0, 1.0]);
 		assert_eq!(51.0, closure(2.0));
 		assert_eq!(133.0, closure(3.0));
 		assert_eq!(277.0, closure(4.0));
@@ -133,7 +139,7 @@ mod tests {
 		//x=4: 192+ 64 + 20 + 1 = 277
 
 		// -3x + 4
-		let closure = poly_clos_from_coef(&[-3.0, 4.0]);
+		let closure = poly_clos_from_coef(vec![-3.0, 4.0]);
 
 		let mut order = Order::new(
 			String::from("trader_id"),

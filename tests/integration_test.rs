@@ -92,8 +92,13 @@ fn test_conc_process_add() {
 	// The default closure: -3x + 4
 	assert_eq!(bid_order.calculate(5.0), -11.0);
 	assert_eq!(ask_order.calculate(5.0), -11.0);
+}
 
-
+#[test]
+fn rand_big() {
+	let mut order = common::rand_bid(OrderType::Enter);
+	order.describe();
+	assert_eq!(order.calculate(5.0), -11.10);
 }
 
 
