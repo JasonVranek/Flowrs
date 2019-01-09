@@ -59,16 +59,42 @@ fn test_conc_queue_recv_order() {
 fn test_queue_pop_all() {
 	let queue = common::setup_full_queue();
 	let popped_off = queue.pop_all();
-	assert_eq!(popped_off[0].order_type, OrderType::Enter);
-	assert_eq!(popped_off[1].order_type, OrderType::Update);
-	assert_eq!(popped_off[2].order_type, OrderType::Cancel)
+	assert_eq!(popped_off.len(), 3);
 }
 
 
-// #[test]
-// fn test_conc_process_order_queue() {
-// 	let queue = common::setup_full_queue();
-// }
+#[test]
+fn test_conc_process_add() {
+	let queue = Arc::new(common::setup_queue());
+	let bids_book = Arc::new(common::setup_bids_book());
+	let asks_book = Arc::new(common::setup_asks_book());
+	
+	// Process the bid
+	let bid_order = common::setup_bid_order();
+	let handle = conc_recv_order(bid_order, Arc::clone(&queue));
+	handle.join().unwrap();
+
+	// Process the ask
+	let ask_order = common::setup_ask_order();
+	let handle = conc_recv_order(ask_order, Arc::clone(&queue));
+	handle.join().unwrap();
+
+	let handles = conc_process_order_queue(Arc::clone(&queue), 
+							Arc::clone(&bids_book),
+							Arc::clone(&asks_book));
+
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	let mut bid_order = bids_book.orders.lock().unwrap().pop().unwrap();
+	let mut ask_order = asks_book.orders.lock().unwrap().pop().unwrap();
+	// The default closure: -3x + 4
+	assert_eq!(bid_order.calculate(5.0), -11.0);
+	assert_eq!(ask_order.calculate(5.0), -11.0);
+
+
+}
 
 
 

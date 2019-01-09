@@ -7,8 +7,7 @@ pub fn add_one(num: u32) -> u32 {
 }
 
 // Enum for matching over order types
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum OrderType {
     Enter,
     Update,
@@ -17,15 +16,15 @@ pub enum OrderType {
 
 
 // Enum for matching over bid or ask
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TradeType {
     Bid,
     Ask,
 }
 
+// #[derive(Cmp)]
 pub struct Order {
-	trader_id: String,			// address of the trader
+	pub trader_id: String,			// address of the trader
 	pub order_type: OrderType,	// Enter, Update, Cancel
 	pub trade_type: TradeType,  // Bid, Ask
 	pub p_low: f64,				// trader's low price

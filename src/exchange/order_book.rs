@@ -27,9 +27,42 @@ impl Book {
     	}
     }
 
-    pub fn add_order(&mut self, order: Order) {
+    pub fn add_order(&self, order: Order) {
     	let mut orders = self.orders.lock().unwrap();
     	orders.push(order);
+    	// orders.sort_unstable_by(|&a, &b| a.p_high.cmp(b.p_high));
+    }
+
+    pub fn update_order(&self, order: Order) {
+    	// Acquire the lock
+        let mut orders = self.orders.lock().unwrap();
+        // Search for existing order's index
+        let order_index = orders.iter().position(|o| o.trader_id == order.trader_id).unwrap();
+        
+        // Add new order to end of the vector
+        orders.push(order);
+        let last = orders.len() - 1;
+        orders.swap(order_index, last);
+        // Swap orders then pop off the old order that is now at the end of vector
+        orders.pop();
+
+
+        // TODO error checking + make this less dumb
+        // If there is no order to cancel this will panic
+    }
+
+    pub fn cancel_order(&self, order: Order) {
+    	// Acquire the lock
+        let mut orders = self.orders.lock().unwrap();
+        // Search for existing order's index
+        let order_index: Option<usize> = orders.iter().position(|o| &o.trader_id == &order.trader_id);
+
+        match order_index {
+        	Some(i) => {
+        		orders.remove(i);
+        	},
+        	None => println!("ERROR: order not found to cancel: {}", &order.trader_id),
+        };
     }
 
     // Blocking len() to acquire lock
@@ -77,7 +110,6 @@ pub fn conc_recv_order(order: Order, queue: Arc<Queue>) -> JoinHandle<()> {
     	// The add function acquires the lock
     	queue.add(order);
     })
-
 }
 
 
@@ -85,31 +117,61 @@ pub fn conc_recv_order(order: Order, queue: Arc<Queue>) -> JoinHandle<()> {
 // either of OrderType::{Enter, Update, Cancel}. Each order will
 // modify the state of either the Bids or Asks Book, but must
 // first acquire a lock on the respective book. 
-pub fn conc_process_order_queue(queue: Arc<Queue>) {
+pub fn conc_process_order_queue(queue: Arc<Queue>, 
+								bids: Arc<Book>, 
+								asks: Arc<Book>) 
+								-> Vec<JoinHandle<()>>{
 	// Acquire lock of Queue
 	// Pop off contents of Queue
 	// match over the OrderType
 	// process each order based on OrderType
-
+	let mut handles = Vec::<JoinHandle<()>>::new();
 	for order in queue.pop_all() {
-		match order.order_type {
-      	    	OrderType::Enter => process_enter(order),
-      	    	OrderType::Update => process_update(order),
-      	    	OrderType::Cancel => process_cancel(order),
-      	    }
+		let handle = match order.trade_type {
+			TradeType::Bid => {
+				match order.order_type {
+					OrderType::Enter => process_enter(order, Arc::clone(&bids)),
+					OrderType::Update => process_update(order, Arc::clone(&bids)),
+  	    			OrderType::Cancel => process_cancel(order, Arc::clone(&bids)),
+				}
+			}
+			TradeType::Ask => {
+				match order.order_type {
+					OrderType::Enter => process_enter(order, Arc::clone(&asks)),
+					OrderType::Update => process_update(order, Arc::clone(&asks)),
+  	    			OrderType::Cancel => process_cancel(order, Arc::clone(&asks)),
+				}
+			}
+		};
+		handles.push(handle);
 	}
+	handles
 }
 
-pub fn process_enter(order: Order) {
 
+// Adds the order to the Bids or Asks Book
+pub fn process_enter(order: Order, book: Arc<Book>) -> JoinHandle<()> {
+	// Spawn a new thread to process the order
+    thread::spawn(move || {
+    	// add_order acquires the lock on the book before mutating
+    	book.add_order(order);
+    })
 }
 
-pub fn process_update(order: Order) {
-
+// Updates an order in the Bids or Asks Book
+pub fn process_update(order: Order, book: Arc<Book>) -> JoinHandle<()> {
+    // Spawn a new thread to cancel and enter
+    thread::spawn(move || {
+    	book.update_order(order);
+    })
 }
 
-pub fn process_cancel(order: Order) {
-
+// Cancels the order living in the Bids or Asks Book
+pub fn process_cancel(order: Order, book: Arc<Book>) -> JoinHandle<()> {
+    // Spawn a new thread to cancel and enter
+    thread::spawn(move || {
+    	book.cancel_order(order);
+    })
 }
 
 

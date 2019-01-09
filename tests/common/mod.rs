@@ -22,6 +22,17 @@ pub fn setup_bid_order() -> Order {
 	)
 }
 
+pub fn setup_ask_order() -> Order {
+	Order::new(
+		String::from("ask_id"),
+		OrderType::Enter,
+		TradeType::Ask,
+		0.0,
+		100.0,
+		poly_clos_from_coef(&[-3.0, 4.0]),
+	)
+}
+
 pub fn setup_bids_book() -> Book {
 	Book::new(TradeType::Bid)
 }
