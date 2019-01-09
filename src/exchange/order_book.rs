@@ -1,5 +1,6 @@
 use crate::io::order::TradeType;
 use crate::io::order::Order;
+use crate::io::order::OrderType;
 
 use std::sync::{Mutex, Arc};
 use std::thread;
@@ -59,6 +60,13 @@ impl Queue {
 		let mut items = self.items.lock().unwrap();
 		items.pop()
 	}
+
+	pub fn pop_all(&self) -> Vec<Order> {
+		// Acquire the lock
+		let mut items = self.items.lock().unwrap();
+		// Pop all items out of the queue and return the contents as a vec
+		items.drain(..).collect()
+	}
 }
 
 // Preprocess message in a new thread and append to queue
@@ -77,9 +85,35 @@ pub fn conc_recv_order(order: Order, queue: Arc<Queue>) -> JoinHandle<()> {
 // either of OrderType::{Enter, Update, Cancel}. Each order will
 // modify the state of either the Bids or Asks Book, but must
 // first acquire a lock on the respective book. 
-pub fn conc_process_order_queue() {
-    
+pub fn conc_process_order_queue(queue: Arc<Queue>) {
+	// Acquire lock of Queue
+	// Pop off contents of Queue
+	// match over the OrderType
+	// process each order based on OrderType
+
+	for order in queue.pop_all() {
+		match order.order_type {
+      	    	OrderType::Enter => process_enter(order),
+      	    	OrderType::Update => process_update(order),
+      	    	OrderType::Cancel => process_cancel(order),
+      	    }
+	}
 }
+
+pub fn process_enter(order: Order) {
+
+}
+
+pub fn process_update(order: Order) {
+
+}
+
+pub fn process_cancel(order: Order) {
+
+}
+
+
+
 
 #[cfg(test)]
 mod tests {

@@ -33,3 +33,42 @@ pub fn setup_asks_book() -> Book {
 pub fn setup_queue() -> Queue {
 	Queue::new()
 }
+
+pub fn each_order_type() -> Vec<Order> {
+	let mut orders = Vec::<Order>::new();
+
+	let b1 = setup_bid_order();
+	orders.push(b1);
+	let mut b2 = setup_bid_order();
+	b2.order_type = OrderType::Update;
+	orders.push(b2);
+	let mut b3 = setup_bid_order();
+	b3.order_type = OrderType::Cancel;
+	orders.push(b3);
+	orders
+}
+
+pub fn setup_full_queue() -> Arc<Queue> {
+	let queue = Arc::new(setup_queue());
+	let mut handles: Vec<_> = Vec::new();
+
+	for order in each_order_type() {
+		handles.push(conc_recv_order(order, Arc::clone(&queue)));
+	}
+
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	queue
+
+}
+
+
+
+
+
+
+
+
+

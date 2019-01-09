@@ -54,3 +54,37 @@ fn test_conc_queue_recv_order() {
 
 	assert_eq!(order.p_high, 199.0);
 }
+
+#[test]
+fn test_queue_pop_all() {
+	let queue = common::setup_full_queue();
+	let popped_off = queue.pop_all();
+	assert_eq!(popped_off[0].order_type, OrderType::Enter);
+	assert_eq!(popped_off[1].order_type, OrderType::Update);
+	assert_eq!(popped_off[2].order_type, OrderType::Cancel)
+}
+
+
+// #[test]
+// fn test_conc_process_order_queue() {
+// 	let queue = common::setup_full_queue();
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
