@@ -10,4 +10,12 @@ fn main() {
     trader::test_trader_mod();
     order_book::test_order_book_mod();
     auction::test_auction_mod();
+
+    // Initialization
+    // order books
+    // orders
+    // traders
+    // timeouts
+
+
 }

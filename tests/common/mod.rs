@@ -3,7 +3,7 @@ use flow_rs::io::order::*;
 use flow_rs::io::trader;
 use flow_rs::exchange::order_book::*;
 use flow_rs::exchange::auction;
-
+use std::sync::{Mutex, Arc};
 
 pub fn setup() {
 	// setup code specific to lib's tests go here
@@ -28,4 +28,8 @@ pub fn setup_bids_book() -> Book {
 
 pub fn setup_asks_book() -> Book {
 	Book::new(TradeType::Ask)
+}
+
+pub fn setup_queue() -> Queue {
+	Queue::new()
 }

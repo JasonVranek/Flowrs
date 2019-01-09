@@ -1,4 +1,9 @@
 // extern crate <name_of_my_crate_to_test>
+use std::sync::{Mutex, Arc};
+use flow_rs::io::order::*;
+use flow_rs::io::trader;
+use flow_rs::exchange::order_book::*;
+use flow_rs::exchange::auction;
 
 // Include the common module for setting up state for tests
 mod common;
@@ -27,3 +32,25 @@ fn test_add_order_to_book() {
 	assert_eq!(order.calculate(5.0), -11.0);
 }
 
+
+#[test]
+fn test_conc_queue_recv_order() {
+	// Setup a queue
+	let queue = Arc::new(common::setup_queue());
+
+	let mut order = common::setup_bid_order();
+
+	// Mutate order
+	order.p_high = 199.0;
+
+	// Accept order in a new thread
+	let handle = conc_recv_order(order, Arc::clone(&queue));
+
+	// Wait for thread to finish
+	handle.join().unwrap();
+
+	// Confirm the queue's order is correct
+	let order = queue.pop().unwrap();
+
+	assert_eq!(order.p_high, 199.0);
+}

@@ -3,6 +3,7 @@ use crate::io::order::Order;
 
 use std::sync::{Mutex, Arc};
 use std::thread;
+use std::thread::JoinHandle;
 
 pub fn test_order_book_mod() {
 	println!("Hello, order_book!");
@@ -37,8 +38,37 @@ impl Book {
     }
 }
 
-// Preprocess message and append to queue
-pub fn concurrent_receive_order() {
+
+pub struct Queue {
+    items: Mutex<Vec<Order>>,
+}
+
+impl Queue {
+	pub fn new() -> Queue {
+		Queue {
+			items: Mutex::new(Vec::<Order>::new()),
+		}
+	}
+
+	pub fn add(&self, order: Order) {
+        let mut items = self.items.lock().unwrap();
+        items.push(order);
+	}
+
+	pub fn pop(&self) -> Option<Order> {
+		let mut items = self.items.lock().unwrap();
+		items.pop()
+	}
+}
+
+// Preprocess message in a new thread and append to queue
+// order is the trader's order that this function takes ownership of
+// queue is an Arc clone of the Queue stored on the heap
+pub fn conc_recv_order(order: Order, queue: Arc<Queue>) -> JoinHandle<()> {
+    thread::spawn(move || {
+    	// The add function acquires the lock
+    	queue.add(order);
+    })
 
 }
 
@@ -47,8 +77,8 @@ pub fn concurrent_receive_order() {
 // either of OrderType::{Enter, Update, Cancel}. Each order will
 // modify the state of either the Bids or Asks Book, but must
 // first acquire a lock on the respective book. 
-pub fn concurrent_process_order_queue() {
-
+pub fn conc_process_order_queue() {
+    
 }
 
 #[cfg(test)]
@@ -85,6 +115,7 @@ mod tests {
 			}
 			
 		}
+		// Wait for all the threads to finish
 		for handle in handles {
 			handle.join().unwrap();
 		}

@@ -31,16 +31,19 @@ pub struct Order {
 	pub p_low: f64,				// trader's low price
 	pub p_high: f64,			// trader's high price
 	function: Box<
-	    Fn(f64) -> f64 
-	    + Send 
-	    + Sync 
-	    + 'static>,	    		// trader's custom closure on heap
+	    		Fn(f64) -> f64 
+	    		+ Send 
+	    		+ Sync 
+	    		+ 'static>,	    // trader's custom closure on heap
 }
 
 impl Order {
-    pub fn new(t_id: String, o_t: OrderType, t_t: TradeType, 
-    	    pl: f64, ph: f64, 
-    	    function: Box<Fn(f64) -> f64 + Send + Sync + 'static>) -> Order {
+    pub fn new(
+    	t_id: String, 
+    	o_t: OrderType, 
+    	t_t: TradeType, 
+    	pl: f64, ph: f64, 
+    	function: Box<Fn(f64) -> f64 + Send + Sync + 'static>) -> Order {
     	Order {
     		trader_id: t_id,		
 			order_type: o_t,	
