@@ -62,23 +62,32 @@ fn test_queue_pop_all() {
 	assert_eq!(popped_off.len(), 3);
 }
 
-
 #[test]
-fn test_conc_process_add() {
+fn test_process_queue() {
+	// Setup queue and order books
 	let queue = Arc::new(common::setup_queue());
 	let bids_book = Arc::new(common::setup_bids_book());
 	let asks_book = Arc::new(common::setup_asks_book());
 	
-	// Process the bid
-	let bid_order = common::setup_bid_order();
-	let handle = conc_recv_order(bid_order, Arc::clone(&queue));
-	handle.join().unwrap();
+	// Setup bids and asks
+	let bids: Vec<Order> = common::n_bid_enters(50);
+	let asks: Vec<Order> = common::n_ask_enters(50);
+	let mut handles = Vec::new();
 
-	// Process the ask
-	let ask_order = common::setup_ask_order();
-	let handle = conc_recv_order(ask_order, Arc::clone(&queue));
-	handle.join().unwrap();
+	// Send all the orders in parallel 
+	for bid in bids {
+		handles.push(conc_recv_order(bid, Arc::clone(&queue)));
+	}
+	for ask in asks {
+		handles.push(conc_recv_order(ask, Arc::clone(&queue)));
+	}
 
+	// Wait for the threads to finish
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	// Process all of the orders in the queue
 	let handles = conc_process_order_queue(Arc::clone(&queue), 
 							Arc::clone(&bids_book),
 							Arc::clone(&asks_book));
@@ -87,19 +96,16 @@ fn test_conc_process_add() {
 		h.join().unwrap();
 	}
 
-	let mut bid_order = bids_book.orders.lock().unwrap().pop().unwrap();
-	let mut ask_order = asks_book.orders.lock().unwrap().pop().unwrap();
-	// The default closure: -3x + 4
-	assert_eq!(bid_order.calculate(5.0), -11.0);
-	assert_eq!(ask_order.calculate(5.0), -11.0);
+	assert_eq!(bids_book.len(), 50);
+	assert_eq!(asks_book.len(), 50);
+
+	let (agg_d, agg_s) = auction::calc_aggs(50.0, 
+		                 Arc::clone(&bids_book),
+		                 Arc::clone(&asks_book));
+
+	assert_eq!(agg_d, agg_s);
 }
 
-#[test]
-fn rand_big() {
-	let mut order = common::rand_bid(OrderType::Enter);
-	order.describe();
-	assert_eq!(order.calculate(5.0), -11.10);
-}
 
 
 

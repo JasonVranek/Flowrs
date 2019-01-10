@@ -28,6 +28,7 @@ pub struct Order {
 	pub trade_type: TradeType,  // Bid, Ask
 	pub p_low: f64,				// trader's low price
 	pub p_high: f64,			// trader's high price
+	pub u_max: f64,
 	function: Box<
 	    		Fn(f64) -> f64 
 	    		+ Send 
@@ -40,20 +41,21 @@ impl Order {
     	t_id: String, 
     	o_t: OrderType, 
     	t_t: TradeType, 
-    	pl: f64, ph: f64, 
+    	pl: f64, ph: f64, u: f64,
     	function: Box<Fn(f64) -> f64 + Send + Sync + 'static>) -> Order {
     	Order {
     		trader_id: t_id,		
 			order_type: o_t,	
 			trade_type: t_t,  
 			p_low: pl,				
-			p_high: ph,			
+			p_high: ph,	
+			u_max: u,		
 			function,			
     	}
     }
 
     // method for calling the order's closure
-    pub fn calculate(&mut self, arg: f64) -> f64 {
+    pub fn calculate(&self, arg: f64) -> f64 {
     	(self.function)(arg)
     }
 
@@ -72,9 +74,6 @@ impl Order {
     pub fn poly_clos_from_coef(coefs: Vec<f64>) -> 
         Box<Fn(f64) -> f64 + Send + Sync + 'static>
     {
-    	
-    	// let coefs = coefs.clone();
-
         // let x be a generic f64 input that closure will compute on
         let iter = Box::new(move |x: f64| -> f64 {
         	// rev since enumerate counts from 0 up, and we wish
@@ -92,6 +91,32 @@ impl Order {
         iter
     }
 
+    pub fn p_wise_dem(p_l: f64, p_h: f64, u: f64) -> Box<Fn(f64) -> f64 + Send + Sync + 'static> {
+    	let func = Box::new(move |x: f64| -> f64 {
+    		if x <= p_l {
+	    		u
+	    	} else if x > p_h {
+	    		0.0
+	    	} else {
+	    		u * ((p_h - x) / (p_h - p_l))
+	    	}
+    	});
+    	func
+    }
+
+    pub fn p_wise_sup(p_l: f64, p_h: f64, u: f64) -> Box<Fn(f64) -> f64 + Send + Sync + 'static> {
+    	let func = Box::new(move |x: f64| -> f64 {
+    		if x < p_l {
+	    		0.0
+	    	} else if x >= p_h {
+	    		u
+	    	} else {
+	    		u + ((x - p_h) / (p_h - p_l)) * u
+	    	}
+    	});
+    	func
+    }
+
 
 #[cfg(test)]
 mod tests {
@@ -104,12 +129,13 @@ mod tests {
 
 	#[test]
 	fn test_new_order() {
-		let mut order = Order::new(
+		let order = Order::new(
 			String::from("trader_id"),
 			OrderType::Enter,
 			TradeType::Bid,
 			0.0,
 			100.0,
+			500.0,
 			Box::new(|x| {
 				println!("This is my closure");
 				x + 1 as f64
@@ -141,12 +167,13 @@ mod tests {
 		// -3x + 4
 		let closure = poly_clos_from_coef(vec![-3.0, 4.0]);
 
-		let mut order = Order::new(
+		let order = Order::new(
 			String::from("trader_id"),
 			OrderType::Enter,
 			TradeType::Bid,
 			0.0,
 			100.0,
+			500.0,
 			closure
 		);
 

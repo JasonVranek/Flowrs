@@ -66,7 +66,7 @@ impl Book {
     }
 
     // Blocking len() to acquire lock
-    pub fn len(&mut self) -> usize {
+    pub fn len(&self) -> usize {
     	let orders = self.orders.lock().unwrap();
     	orders.len()
     }
