@@ -180,6 +180,28 @@ mod tests {
 		assert_eq!(-17.0, order.calculate(7.0));
 		assert_eq!(19.0, order.calculate(-5.0));
 	}
+
+	#[test]
+	fn test_piecewise_demand() {
+		let (p_l, p_h, u_max) = (100.0, 200.0, 500.0);
+		let closure = p_wise_dem(p_l, p_h, u_max);
+		// u * ((p_h - x) / (p_h - p_l))
+		// 500 * ((200 - 150 / (200 - 100)) = 250
+		assert_eq!(closure(50.0), 500.0);
+		assert_eq!(closure(150.0), 250.0);
+		assert_eq!(closure(300.0), 0.0);
+	}
+
+	#[test]
+	fn test_piecewise_supply() {
+		let (p_l, p_h, u_max) = (100.0, 200.0, 500.0);
+		let closure = p_wise_sup(p_l, p_h, u_max);
+		// u * ((p_h - x) / (p_h - p_l))
+		// 500 * ((200 - 150 / (200 - 100)) = 250
+		assert_eq!(closure(50.0), 0.0);
+		assert_eq!(closure(150.0), 250.0);
+		assert_eq!(closure(300.0), 500.0);
+	}
 }
 
 

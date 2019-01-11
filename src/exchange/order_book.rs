@@ -30,7 +30,7 @@ impl Book {
     pub fn add_order(&self, order: Order) {
     	let mut orders = self.orders.lock().unwrap();
     	orders.push(order);
-    	// orders.sort_unstable_by(|&a, &b| a.p_high.cmp(b.p_high));
+    	orders.sort_by(|a, b| a.p_high.partial_cmp(&b.p_high).unwrap());
     }
 
     pub fn update_order(&self, order: Order) {
@@ -69,6 +69,16 @@ impl Book {
     pub fn len(&self) -> usize {
     	let orders = self.orders.lock().unwrap();
     	orders.len()
+    }
+
+    pub fn get_min_price(&self) -> f64 {
+    	let price = self.min_price.lock().unwrap();
+    	price.clone() as f64
+    }
+
+    pub fn get_max_price(&self) -> f64 {
+    	let price = self.max_price.lock().unwrap();
+    	price.clone() as f64
     }
 }
 

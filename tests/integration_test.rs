@@ -99,11 +99,16 @@ fn test_process_queue() {
 	assert_eq!(bids_book.len(), 50);
 	assert_eq!(asks_book.len(), 50);
 
-	let (agg_d, agg_s) = auction::calc_aggs(50.0, 
-		                 Arc::clone(&bids_book),
-		                 Arc::clone(&asks_book));
+	// let (agg_d, agg_s) = auction::calc_aggs(50.0, 
+	// 	                 Arc::clone(&bids_book),
+	// 	                 Arc::clone(&asks_book));
 
-	assert_eq!(agg_d, agg_s);
+	// assert_eq!(agg_d, agg_s);
+}
+
+#[test]
+pub fn test_min_max_price() {
+
 }
 
 
