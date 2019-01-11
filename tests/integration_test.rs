@@ -1,5 +1,7 @@
 // extern crate <name_of_my_crate_to_test>
 use std::sync::{Mutex, Arc};
+use std::thread::sleep;
+use std::time::Duration;
 use flow_rs::io::order::*;
 use flow_rs::io::trader;
 use flow_rs::exchange::order_book::*;
@@ -70,8 +72,7 @@ fn test_process_queue() {
 	let asks_book = Arc::new(common::setup_asks_book());
 	
 	// Setup bids and asks
-	let bids: Vec<Order> = common::n_bid_enters(50);
-	let asks: Vec<Order> = common::n_ask_enters(50);
+	let (bids, asks) = common::setup_orders();
 	let mut handles = Vec::new();
 
 	// Send all the orders in parallel 
@@ -96,19 +97,62 @@ fn test_process_queue() {
 		h.join().unwrap();
 	}
 
-	assert_eq!(bids_book.len(), 50);
-	assert_eq!(asks_book.len(), 50);
+	assert_eq!(bids_book.len(), 100);
+	assert_eq!(asks_book.len(), 100);
 
-	// let (agg_d, agg_s) = auction::calc_aggs(50.0, 
-	// 	                 Arc::clone(&bids_book),
-	// 	                 Arc::clone(&asks_book));
+	let b_max_price = bids_book.get_max_price();
+	let b_min_price = bids_book.get_min_price();
+	let a_max_price = asks_book.get_max_price();
+	let a_min_price = asks_book.get_min_price();
 
-	// assert_eq!(agg_d, agg_s);
+	assert_eq!(b_max_price, 100.0);
+	assert_eq!(b_min_price, 0.0);
+	assert_eq!(a_max_price, 100.0);
+	assert_eq!(a_min_price, 0.0);
+
+	let (min, max) = auction::get_price_bounds(Arc::clone(&bids_book), Arc::clone(&asks_book));
+	assert_eq!(min, 0.0);
+	assert_eq!(max, 100.0);
+
 }
 
 #[test]
-pub fn test_min_max_price() {
+pub fn test_find_crossing_price() {
+    let queue = Arc::new(common::setup_queue());
+	let bids_book = Arc::new(common::setup_bids_book());
+	let asks_book = Arc::new(common::setup_asks_book());
+	
+	// Setup bids and asks
+	let (bids, asks) = common::setup_orders();
+	let mut handles = Vec::new();
 
+	// Send all the orders in parallel 
+	for bid in bids {
+		handles.push(conc_recv_order(bid, Arc::clone(&queue)));
+	}
+	for ask in asks {
+		handles.push(conc_recv_order(ask, Arc::clone(&queue)));
+	}
+
+	// Wait for the threads to finish
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	// Process all of the orders in the queue
+	let handles = conc_process_order_queue(Arc::clone(&queue), 
+							Arc::clone(&bids_book),
+							Arc::clone(&asks_book));
+
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	assert_eq!(bids_book.len(), 100);
+	assert_eq!(asks_book.len(), 100);
+
+	let cross_price = auction::bs_cross(Arc::clone(&bids_book), Arc::clone(&asks_book)).unwrap();
+	assert_eq!(cross_price, 81.09048166081236);
 }
 
 

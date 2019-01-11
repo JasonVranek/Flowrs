@@ -1,3 +1,4 @@
+use core::f64::MAX;
 use crate::io::order::TradeType;
 use crate::io::order::Order;
 use crate::io::order::OrderType;
@@ -22,7 +23,7 @@ impl Book {
     	Book {
     		book_type,
     		orders: Mutex::new(Vec::<Order>::new()),
-    		min_price: Mutex::new(0.0),
+    		min_price: Mutex::new(MAX),
     		max_price: Mutex::new(0.0),
     	}
     }
@@ -63,6 +64,20 @@ impl Book {
         	},
         	None => println!("ERROR: order not found to cancel: {}", &order.trader_id),
         };
+    }
+
+    pub fn update_max_price(&self, p_high: &f64) {
+		let mut max_price = self.max_price.lock().unwrap();
+		if *p_high > *max_price {
+			*max_price = *p_high;
+		} 
+    }
+
+	pub fn update_min_price(&self, p_low: &f64) {
+		let mut min_price = self.min_price.lock().unwrap();
+		if *p_low < *min_price {
+			*min_price = *p_low;
+		} 
     }
 
     // Blocking len() to acquire lock
@@ -164,6 +179,8 @@ pub fn process_enter(order: Order, book: Arc<Book>) -> JoinHandle<()> {
 	// Spawn a new thread to process the order
     thread::spawn(move || {
     	// add_order acquires the lock on the book before mutating
+    	book.update_max_price(&order.p_high);
+    	book.update_min_price(&order.p_low);
     	book.add_order(order);
     })
 }
@@ -195,7 +212,7 @@ mod tests {
 	fn test_new_book() {
 		let book = Book::new(TradeType::Bid);
 		assert_eq!(book.book_type, TradeType::Bid);
-		assert_eq!(*book.min_price.lock().unwrap(), 0.0);
+		assert_eq!(*book.min_price.lock().unwrap(), MAX);
 		assert_eq!(*book.max_price.lock().unwrap(), 0.0);
 	}
 

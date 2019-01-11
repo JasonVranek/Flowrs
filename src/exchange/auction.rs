@@ -1,8 +1,6 @@
-use core::cmp::{min, max};
 use std::sync::Arc;
 use crate::exchange::order_book::Book;
 use rayon::prelude::*;
-use decimal::*;
 
 pub fn test_auction_mod() {
 	println!("Hello, auction");
@@ -39,12 +37,32 @@ pub fn calc_aggs(p: f64, bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {
 	(agg_demand, agg_supply)
 }
 
-pub fn bs_cross(bids: Arc<Book>, asks: Arc<Book>) -> f64 {
+pub fn bs_cross(bids: Arc<Book>, asks: Arc<Book>) -> Option<f64> {
+	println!("Starting Auction");
 	// get_price_bounds obtains locks on the book's prices
-    let (left, right) = get_price_bounds(Arc::clone(&bids), Arc::clone(&asks));
+    let (mut left, mut right) = get_price_bounds(Arc::clone(&bids), Arc::clone(&asks));
+    // let mut left = 0.0;
+    // let mut right = asks.get_max_price();
+    println!("Min Book price: {}, Max Book price: {}", left, right);
+    while left < right {
+    	// Find a midpoint with the correct price tick precision
+    	let index: f64 = (left + right) / 2.0;
+    	// Calculate the aggregate supply and demand at this price
+    	let (dem, sup) = calc_aggs(index, Arc::clone(&bids), Arc::clone(&asks));
+    	println!("price_index: {}, dem: {}, sup: {}", index, dem, sup);
 
-
-    1.1
+    	if dem > sup {
+    		// We are left of the crossing point
+    		left = index;
+    	} else if dem < sup {
+    		// We are right of the crossing point
+    		right = index;
+    	} else {
+    		println!("Found cross at: {}", index);
+    		return Some(index);
+    	}
+    }
+    None
 }
 
 pub fn get_price_bounds(bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {
@@ -89,16 +107,6 @@ fn test_min_max_float() {
 	let b = 10.0;
 	assert_eq!(2.0, min_float(&a, &b));
 	assert_eq!(10.0, max_float(&a, &b));
-}
-
-#[test]
-fn test_decimal() {
-	let x: d128 = d128!(1.23);
-	let y = d128!(1.2);
-	let z = d128!(0.03);
-
-	assert_eq!(x, y + z);
-
 }
 
 

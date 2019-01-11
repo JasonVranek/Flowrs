@@ -79,7 +79,7 @@ pub fn setup_full_queue() -> Arc<Queue> {
 
 pub fn rand_ask_enter() -> Order {
 	let (p_l, p_h) = gen_prices();
-	let coefs = rand_coef_vector();
+	// let coefs = rand_coef_vector();
 	let id = gen_order_id();
 	let u_max = gen_u_max();
 	Order::new(
@@ -89,13 +89,14 @@ pub fn rand_ask_enter() -> Order {
 		p_l,
 		p_h,
 		u_max,
-		poly_clos_from_coef(coefs),
+		p_wise_sup(p_l, p_h, u_max)
+		// poly_clos_from_coef(coefs),,
 	)
 }
 
 pub fn rand_bid_enter() -> Order {
 	let (p_l, p_h) = gen_prices();
-	let coefs = rand_coef_vector();
+	// let coefs = rand_coef_vector();
 	let id = gen_order_id();
 	let u_max = gen_u_max();
 	Order::new(
@@ -105,7 +106,8 @@ pub fn rand_bid_enter() -> Order {
 		p_l,
 		p_h,
 		u_max,
-		poly_clos_from_coef(coefs),
+		p_wise_dem(p_l, p_h, u_max),
+		// poly_clos_from_coef(coefs),
 	)
 }
 
@@ -162,6 +164,34 @@ pub fn n_ask_enters(n: u32) -> Vec<Order> {
 		asks.push(rand_ask_enter());
 	}
 	asks
+}
+
+pub fn setup_orders() -> (Vec<Order>, Vec<Order>) {
+	let mut bids = Vec::<Order>::new();
+	let mut asks = Vec::<Order>::new();
+	for i in 0..100 {
+		bids.push(Order::new(
+			gen_order_id(), 
+    		OrderType::Enter, 
+    		TradeType::Bid, 
+    		i as f64, 
+    		100.0, 
+    		500.0,
+    		p_wise_dem(i as f64, 100.0, 500.0),
+		));
+		asks.push(Order::new(
+			gen_order_id(), 
+    		OrderType::Enter, 
+    		TradeType::Ask, 
+    		i as f64, 
+    		100.0, 
+    		500.0,
+    		p_wise_sup(i as f64, 100.0, 500.0),
+		));
+
+	}
+
+	(bids, asks)
 }
 
 
