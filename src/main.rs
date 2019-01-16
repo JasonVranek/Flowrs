@@ -1,5 +1,6 @@
 extern crate flow_rs;
 
+use flow_rs::State;
 use std::sync::{Mutex, Arc};
 
 use flow_rs::io::order::*;
@@ -10,16 +11,15 @@ use flow_rs::exchange::auction;
 
 use tokio::prelude::*;
 use tokio::io;
-use tokio::timer::{Delay, Interval};
-use std::time::{Duration, Instant, SystemTime};
+
 
 fn main() {
-    test();
+    tokio::run(start_flow_market());
 }
 
-fn test() {
+fn fill_book() -> (Arc<Queue>, Arc<Book>, Arc<Book>, Arc<Mutex<State>>) {
 	// Initialize 
-    let (queue, bids_book, asks_book) = flow_rs::setup();
+    let (queue, bids_book, asks_book, state) = flow_rs::setup();
     
     let (bids, asks) = flow_rs::setup_orders();
 	let mut handles = Vec::new();
@@ -52,39 +52,30 @@ fn test() {
 	let cross_price = auction::bs_cross(Arc::clone(&bids_book), Arc::clone(&asks_book)).unwrap();
 	assert_eq!(cross_price, 81.09048166081236);
 
-	let auction_task = auction_interval(Arc::clone(&bids_book), Arc::clone(&asks_book), 100);
-	tokio::run(auction_task);
-
+	(queue, bids_book, asks_book, state)
 }
 
-fn auction_interval(bids: Arc<Book>, asks: Arc<Book>, duration: u64) -> Box<Future<Item = (), Error = ()> + Send> {
-	// let when = Instant::now() + Duration::from_millis(500);
-	let task = Interval::new(Instant::now(),  Duration::from_millis(duration))
-	    .for_each(move |_| {
-	    	let now = SystemTime::now();
-	    	println!("Starting Auction");
-	    	let cross_price = auction::bs_cross(Arc::clone(&bids), Arc::clone(&asks)).unwrap();
-	    	let done = now.elapsed().unwrap().subsec_nanos();
-	    	println!("Found Cross at @{} \nP = {}", done, cross_price);
-	    	Ok(())
-	    })
-	    .map_err(|e| panic!("Auction Delay error; err={:?}", e));
-
-	Box::new(task)
-}
 // Function to be called within tokio::run()
-fn start_flow_market() {
+fn start_flow_market() -> Box<Future<Item = (), Error = ()> + Send> {
 	// start listener for tcp connections
+	// let (queue, bids_book, asks_book, state) = flow_rs::setup();
+    
+    let (queue, bids_book, asks_book, state) = fill_book();
+    
 
+	// let auction_task = auction_interval(Arc::clone(&bids_book), Arc::clone(&asks_book), 100);
+	// tokio::run(auction_task);
 	// spawn a task to process the order queue and schedule the auction
-}
+	let auction_task = flow_rs::auction_interval(Arc::clone(&bids_book), 
+		                                         Arc::clone(&asks_book), 
+		                                         Arc::clone(&state), 100);
+	// tokio::spawn(auction_task);	//HERERERE
 
-// Make an enum that has the states of the flow market
-
-enum FlowMarket {
-	Processing,
-	DeltaTime,
-	Auction,
+	let queue_task = flow_rs::process_queue_interval(Arc::clone(&queue), 
+		                                             Arc::clone(&bids_book), 
+		                                             Arc::clone(&asks_book),
+		                                             Arc::clone(&state));
+	queue_task
 }
 
 
