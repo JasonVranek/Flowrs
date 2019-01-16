@@ -6,3 +6,7 @@ pub fn test_trader_mod() {
 pub struct Trader {
 	
 }
+
+fn main() {
+	println!("hello trader");
+}

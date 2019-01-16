@@ -1,18 +1,20 @@
 extern crate flow_rs;
+extern crate futures;
+extern crate serde_json;
+extern crate tokio;
+extern crate tokio_serde_json;
 
 use flow_rs::State;
 use std::sync::{Mutex, Arc};
 
-use flow_rs::io::order::*;
-use flow_rs::io::order;
-use flow_rs::io::trader;
 use flow_rs::exchange::order_book::*;
-use flow_rs::exchange::auction;
 
 use tokio::prelude::*;
-use tokio::io;
-use tokio::net::{TcpListener, TcpStream};
-use futures::future::lazy;
+use tokio::net::{TcpListener};
+use futures::{Future, Stream};
+use tokio::codec::{FramedRead, LengthDelimitedCodec};
+use serde_json::Value;
+use tokio_serde_json::ReadJson;
 
 
 fn main() {
@@ -58,7 +60,6 @@ fn fill_book() -> (Arc<Queue>, Arc<Book>, Arc<Book>, Arc<Mutex<State>>) {
 }
 
 // Function to be called within tokio::run()
-// Box<Future<Item = (), Error = ()> + Send>
 fn start_flow_market() {
 	// start listener for tcp connections
 	// let (queue, bids_book, asks_book, state) = flow_rs::setup();
@@ -66,22 +67,52 @@ fn start_flow_market() {
     let (queue, bids_book, asks_book, state) = fill_book();
 
     // Bind a TcpListener to a local port
-	// let addr = "127.0.0.1:6142".parse().unwrap();
-	// let listener = TcpListener::bind(&addr).unwrap();
+	let addr = "127.0.0.1:6142".parse().unwrap();
+	let listener = TcpListener::bind(&addr).unwrap();
 
-	let batch_interval = 100;
     
-	// spawn tasks to process the order queue and schedule the auction
+	// spawn task run an auction every batch_interval (milliseconds)
+	let batch_interval = 100;
 	let auction_task = flow_rs::auction_interval(Arc::clone(&bids_book), 
 		                          Arc::clone(&asks_book), 
 		                          Arc::clone(&state), batch_interval);
 
+	// spawn task that processes order queue every queue_interval (milliseconds)
+	let queue_interval = 100;
 	let queue_task = flow_rs::process_queue_interval(Arc::clone(&queue), 
 		                                             Arc::clone(&bids_book), 
 		                                             Arc::clone(&asks_book),
-		                                             Arc::clone(&state));
+		                                             Arc::clone(&state),
+		                                             queue_interval);
 
-	tokio::run(auction_task.join(queue_task).map(|_| ()));
+	// start a tcp server that accepts JSON objects 
+	let server = listener.incoming().for_each(move |socket| {
+		// Clone the queue into the closure
+		let queue = Arc::clone(&queue);
+		// Delimit frames using a length header
+        let length_delimited = FramedRead::new(socket, LengthDelimitedCodec::new());
+
+        // Deserialize frames
+        let deserialized = ReadJson::<_, Value>::new(length_delimited)
+            .map_err(|e| println!("ERR: {:?}", e));
+
+        // Spawn a task that converts JSON to an Order and adds to queue
+        tokio::spawn(deserialized.for_each(move |msg| {
+            println!("GOT: {:?}", msg);
+            flow_rs::process_new(msg, Arc::clone(&queue));
+            Ok(())
+        }));
+
+        Ok(())
+    })
+    .map_err(|_| ());
+
+
+	println!("Running server on localhost:6142");
+
+	// Use join/join_all to combine futures into a single future to use in tokio::run
+	tokio::run(server.join(queue_task).map(|_| ())
+		.join(auction_task).map(|_| ()));
 }
 
 

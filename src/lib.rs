@@ -7,6 +7,7 @@ use std::time::{Duration, Instant, SystemTime};
 use crate::exchange::order_book::*;
 use crate::io::order::*;
 use crate::exchange::auction;
+use serde_json::Value;
 
 
 pub mod io;
@@ -92,10 +93,10 @@ pub fn auction_interval(bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State
 	Box::new(task)
 }
 
-pub fn process_queue_interval(queue: Arc<Queue>, bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State>>) 
+pub fn process_queue_interval(queue: Arc<Queue>, bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State>>, duration: u64) 
 -> Box<Future<Item = (), Error = ()> + Send> 
 {
-    let task = Interval::new(Instant::now(), Duration::from_millis(10))
+    let task = Interval::new(Instant::now(), Duration::from_millis(duration))
         .for_each(move |_| {
     		// Obtain lock on the global state and only process if in Process state
     		match *state.lock().unwrap() {
@@ -118,3 +119,39 @@ pub fn process_queue_interval(queue: Arc<Queue>, bids: Arc<Book>, asks: Arc<Book
 
     Box::new(task)
 }
+
+pub fn process_new(msg: serde_json::Value, queue: Arc<Queue>) {
+	// create Order from JSON
+	let order = order_from_json(msg);
+
+	// add message to queue with conc_recv_order()
+	let handle = conc_recv_order(order, Arc::clone(&queue));
+	handle.join();
+
+}
+
+pub fn order_from_json(msg: serde_json::Value) -> Order {
+	Order::new(
+		gen_order_id(), 
+		OrderType::Enter, 
+		TradeType::Bid, 
+		10.0, 
+		100.0, 
+		500.0,
+		p_wise_dem(10.0, 100.0, 500.0))
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
