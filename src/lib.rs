@@ -1,5 +1,5 @@
+use crate::io::trader::*;
 use std::sync::{Mutex, Arc};
-use rand::Rng;
 use tokio::prelude::*;
 use tokio::timer::Interval;
 use std::time::{Duration, Instant, SystemTime};
@@ -7,8 +7,11 @@ use std::time::{Duration, Instant, SystemTime};
 use crate::exchange::order_book::*;
 use crate::io::order::*;
 use crate::exchange::auction;
-use serde_json::Value;
 
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
 
 pub mod io;
 pub mod exchange;
@@ -25,17 +28,6 @@ pub fn setup() -> (Arc<Queue>, Arc<Book>, Arc<Book>, Arc<Mutex<State>>) {
 	let bids_book = Arc::new(Book::new(TradeType::Bid));
 	let asks_book = Arc::new(Book::new(TradeType::Ask));
 	(queue, bids_book, asks_book, Arc::new(Mutex::new(State::Process)))
-}
-
-
-pub fn gen_order_id() -> String {
-	// Create a variable length vector filled with random chars
-	let mut rng = rand::thread_rng();
-	let mut id = String::new();
-	for _ in 0..rng.gen_range(1, 10) {
-		id.push(rand::random::<char>());
-	}
-	id
 }
 
 pub fn setup_orders() -> (Vec<Order>, Vec<Order>) {
@@ -60,9 +52,7 @@ pub fn setup_orders() -> (Vec<Order>, Vec<Order>) {
     		500.0,
     		p_wise_sup(i as f64, 100.0, 500.0),
 		));
-
 	}
-
 	(bids, asks)
 }
 
@@ -120,26 +110,67 @@ pub fn process_queue_interval(queue: Arc<Queue>, bids: Arc<Book>, asks: Arc<Book
     Box::new(task)
 }
 
+
+// A struct for providing stong types to deserialize the incoming JSONs
+#[derive(Deserialize, Debug)]
+struct JsonOrder{
+	trader_id: String,        
+    order_type: String,    
+    trade_type: String,  
+    p_low: f64,              
+    p_high: f64, 
+    u_max: f64,       
+}
+
+// Deserialize the JSON, create an Order type, and push onto the queue
 pub fn process_new(msg: serde_json::Value, queue: Arc<Queue>) {
 	// create Order from JSON
 	let order = order_from_json(msg);
 
-	// add message to queue with conc_recv_order()
-	let handle = conc_recv_order(order, Arc::clone(&queue));
-	handle.join();
-
+	if let Some(o) = order {
+		// add message to queue with conc_recv_order()
+		let handle = conc_recv_order(o, Arc::clone(&queue));
+		handle.join().unwrap();
+	} else {
+		println!("Unsuccessful json parsing");
+	}
 }
 
-pub fn order_from_json(msg: serde_json::Value) -> Order {
-	Order::new(
-		gen_order_id(), 
-		OrderType::Enter, 
-		TradeType::Bid, 
-		10.0, 
-		100.0, 
-		500.0,
-		p_wise_dem(10.0, 100.0, 500.0))
+// Make an Order from a JSON
+pub fn order_from_json(msg: serde_json::Value) -> Option<Order> {
+	let typed_json: JsonOrder = serde_json::from_value(msg).unwrap();
+	// Parse JSON body into enums compatible with flow market
+	let ot = match typed_json.order_type.to_lowercase().as_ref() {
+		"enter" => OrderType::Enter,
+		"update" => OrderType::Update,
+		"cancel" => OrderType::Cancel,
+		_ => {
+			println!("Entered an invalid ordertype!");
+			return None;
+			},
+	};
+
+	let tt = match typed_json.trade_type.to_lowercase().as_ref() {
+		"bid" => TradeType::Bid,
+		"ask" => TradeType::Ask,
+		_ => {
+			println!("Entered an invalid tradetype");
+			return None;
+		},
+	};
+
+	Some(Order::new(
+		typed_json.trader_id,
+		ot, 
+		tt, 
+		typed_json.p_low, 
+		typed_json.p_high, 
+		typed_json.u_max,
+		p_wise_dem(typed_json.p_low, typed_json.p_high, typed_json.u_max)
+		))
 }
+
+
 
 
 

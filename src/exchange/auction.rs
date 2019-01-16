@@ -49,7 +49,7 @@ pub fn bs_cross(bids: Arc<Book>, asks: Arc<Book>) -> Option<f64> {
     	let index: f64 = (left + right) / 2.0;
     	// Calculate the aggregate supply and demand at this price
     	let (dem, sup) = calc_aggs(index, Arc::clone(&bids), Arc::clone(&asks));
-    	println!("price_index: {}, dem: {}, sup: {}", index, dem, sup);
+    	// println!("price_index: {}, dem: {}, sup: {}", index, dem, sup);
 
     	if dem > sup {
     		// We are left of the crossing point
