@@ -1,7 +1,7 @@
 use std::sync::{Mutex, Arc};
 use rand::Rng;
 use tokio::prelude::*;
-use tokio::timer::{Delay, Interval};
+use tokio::timer::Interval;
 use std::time::{Duration, Instant, SystemTime};
 
 use crate::exchange::order_book::*;

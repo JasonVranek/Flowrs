@@ -40,9 +40,11 @@ pub fn calc_aggs(p: f64, bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {
 pub fn bs_cross(bids: Arc<Book>, asks: Arc<Book>) -> Option<f64> {
 	// get_price_bounds obtains locks on the book's prices
     let (mut left, mut right) = get_price_bounds(Arc::clone(&bids), Arc::clone(&asks));
-    // let (mut left, mut right) = (0.0, 100.0);
+    let max_iters = 1000;
+    let mut curr_iter = 0;
     println!("Min Book price: {}, Max Book price: {}", left, right);
     while left < right {
+    	curr_iter += 1;
     	// Find a midpoint with the correct price tick precision
     	let index: f64 = (left + right) / 2.0;
     	// Calculate the aggregate supply and demand at this price
@@ -57,6 +59,11 @@ pub fn bs_cross(bids: Arc<Book>, asks: Arc<Book>) -> Option<f64> {
     		right = index;
     	} else {
     		println!("Found cross at: {}", index);
+    		return Some(index);
+    	}
+
+    	if curr_iter == max_iters {
+    		println!("Trouble finding cross in max iterations, got: {}", index);
     		return Some(index);
     	}
     }
