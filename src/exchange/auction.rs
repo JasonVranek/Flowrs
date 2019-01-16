@@ -38,11 +38,9 @@ pub fn calc_aggs(p: f64, bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {
 }
 
 pub fn bs_cross(bids: Arc<Book>, asks: Arc<Book>) -> Option<f64> {
-	println!("Starting Auction");
 	// get_price_bounds obtains locks on the book's prices
     let (mut left, mut right) = get_price_bounds(Arc::clone(&bids), Arc::clone(&asks));
-    // let mut left = 0.0;
-    // let mut right = asks.get_max_price();
+    // let (mut left, mut right) = (0.0, 100.0);
     println!("Min Book price: {}, Max Book price: {}", left, right);
     while left < right {
     	// Find a midpoint with the correct price tick precision
