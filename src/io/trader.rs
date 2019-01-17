@@ -36,6 +36,10 @@ impl Traders {
 	pub fn del_trader(&mut self, trader_id: String) {
 		self.traders.lock().unwrap().remove(&trader_id);
 	}
+
+	pub fn num_traders(&self) -> usize {
+		self.traders.lock().unwrap().len()
+	}
 }
 
 pub fn rand_enters(upper: u64) -> Vec<Order> {

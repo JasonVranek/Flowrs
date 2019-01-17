@@ -14,12 +14,31 @@ pub enum OrderType {
     Cancel,
 }
 
+impl Clone for OrderType {
+	fn clone(&self) -> OrderType { 
+		match self {
+			OrderType::Enter => OrderType::Enter,
+			OrderType::Update => OrderType::Update,
+			OrderType::Cancel => OrderType::Cancel,
+		}
+	}
+}
+
 
 // Enum for matching over bid or ask
 #[derive(Debug, PartialEq)]
 pub enum TradeType {
     Bid,
     Ask,
+}
+
+impl Clone for TradeType {
+	fn clone(&self) -> TradeType { 
+		match self {
+			TradeType::Ask => TradeType::Ask,
+			TradeType::Bid => TradeType::Bid,
+		}
+	}
 }
 
 pub struct Order {
@@ -66,6 +85,20 @@ impl Order {
     		self.p_low, self.p_high);
     }
 }
+
+// impl Clone for Order {
+// 	fn clone(&self) -> Order { 
+// 		Order {
+// 			trader_id: self.trader_id.clone(),
+// 			order_type: self.order_type.clone(),	
+// 			trade_type: self.trade_type.clone(),  
+// 			p_low: self.p_low.clone(),				
+// 			p_high: self.p_high.clone(),	
+// 			u_max: self.u_max.clone(),		
+// 			function: Box::new(|x| -> f64),	
+// 		} 
+// 	} 	
+// }
 
 	/// Creates a closure from an array of floats. This closure is the 
 	/// equivalent to a polynomial. 

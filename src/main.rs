@@ -56,7 +56,7 @@ fn main() {
 
         // Spawn a task that converts JSON to an Order and adds to queue
         tokio::spawn(deserialized.for_each(move |msg| {
-            println!("GOT: {:?}", msg);
+            // println!("GOT: {:?}", msg);
             flow_rs::process_new(msg, Arc::clone(&queue));
             Ok(())
         }));
