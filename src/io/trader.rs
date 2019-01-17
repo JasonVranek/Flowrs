@@ -1,7 +1,7 @@
 use crate::io::order::*;
 use rand::Rng;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 
 
 pub struct Traders {
@@ -42,6 +42,45 @@ impl Traders {
 	}
 }
 
+// Function for parsing an order into it's Json components. Workaround since
+// Box<Fn(f64) -> f64 + Send + Sync + 'static cannot implement clone trait
+pub fn params_for_json(order: &Order) -> (String, OrderType, TradeType, f64, f64, f64) {
+    return (order.trader_id.clone(),
+        order.order_type.clone(),
+        order.trade_type.clone(),
+        order.p_low.clone(),
+        order.p_high.clone(),
+        order.u_max.clone());
+}
+
+
+pub fn gen_rand_updates(t_struct: Arc<Traders>, upper: u32) -> Vec<(String, OrderType, TradeType, f64, f64, f64)> {
+		let mut rng = rand::thread_rng();
+		// Get a lock on the HashMap 
+		let mut orders = t_struct.traders.lock().unwrap();
+
+		// Vector of tuples to construct JSON messages
+		let mut to_send: Vec<_> = Vec::new();
+
+		// Iterate through hashmap and update based on rng
+		for order in orders.values_mut() {
+			// (1 / upper) chance of updating the given order
+			if rng.gen_range(0, upper) == 1 {
+				// generate a new order with same trader_id and trader_type
+				let new_order = rand_update_order(order);
+				// send the order over tcp as json
+				let p = params_for_json(order);
+				to_send.push(p);
+				println!("Before order: {:?} {} {} {} -> {:?} {} {} {}", order.order_type, order.p_low, order.p_high,
+					order.u_max, new_order.order_type, new_order.p_low, new_order.p_high,
+					new_order.u_max);
+				// save the new order in the hashmap
+				*order = new_order;
+			}
+		}
+		to_send
+	}
+
 pub fn rand_enters(upper: u64) -> Vec<Order> {
 	let mut rng = rand::thread_rng();
 	let mut orders = Vec::<Order>::new();
@@ -55,8 +94,6 @@ pub fn rand_enters(upper: u64) -> Vec<Order> {
 	}
 	orders
 }
-
-
 
 pub fn rand_ask_enter() -> Order {
 	let (p_l, p_h) = gen_prices();
@@ -92,13 +129,13 @@ pub fn rand_bid_enter() -> Order {
 	)
 }
 
-pub fn rand_update_order(old: Order) -> Order {
+pub fn rand_update_order(old: &Order) -> Order {
 	// randomizes the fields of an order but retains trade_id and trade_type
     let mut new = match old.trade_type {
     	TradeType::Bid => rand_bid_enter(),
     	TradeType::Ask => rand_ask_enter(),
     };
-
+    new.order_type = OrderType::Update;
     new.trader_id = old.trader_id.clone();
     new
 

@@ -40,7 +40,6 @@ impl Clone for TradeType {
 		}
 	}
 }
-
 pub struct Order {
 	pub trader_id: String,			// address of the trader
 	pub order_type: OrderType,	// Enter, Update, Cancel
