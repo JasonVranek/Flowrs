@@ -77,40 +77,6 @@ pub fn setup_full_queue() -> Arc<Queue> {
 	queue
 }
 
-// pub fn rand_ask_enter() -> Order {
-// 	let (p_l, p_h) = gen_prices();
-// 	// let coefs = rand_coef_vector();
-// 	let id = gen_order_id();
-// 	let u_max = gen_u_max(500.0);
-// 	Order::new(
-// 		id,
-// 		OrderType::Enter,
-// 		TradeType::Ask,
-// 		p_l,
-// 		p_h,
-// 		u_max,
-// 		p_wise_sup(p_l, p_h, u_max)
-// 		// poly_clos_from_coef(coefs),,
-// 	)
-// }
-
-// pub fn rand_bid_enter() -> Order {
-// 	let (p_l, p_h) = gen_prices();
-// 	// let coefs = rand_coef_vector();
-// 	let id = gen_order_id();
-// 	let u_max = gen_u_max(500.0);
-// 	Order::new(
-// 		id,
-// 		OrderType::Enter,
-// 		TradeType::Bid,
-// 		p_l,
-// 		p_h,
-// 		u_max,
-// 		p_wise_dem(p_l, p_h, u_max),
-// 		// poly_clos_from_coef(coefs),
-// 	)
-// }
-
 pub fn rand_coef_vector() -> Vec<f64> {
 	// Create a variable length vector filled with random f64's
 	let mut rng = rand::thread_rng();

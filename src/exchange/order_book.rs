@@ -34,22 +34,23 @@ impl Book {
     	orders.sort_by(|a, b| a.p_high.partial_cmp(&b.p_high).unwrap());
     }
 
+    // TODO make this less dumb
     pub fn update_order(&self, order: Order) {
     	// Acquire the lock
         let mut orders = self.orders.lock().unwrap();
         // Search for existing order's index
-        let order_index = orders.iter().position(|o| o.trader_id == order.trader_id).unwrap();
-        
-        // Add new order to end of the vector
-        orders.push(order);
-        let last = orders.len() - 1;
-        orders.swap(order_index, last);
-        // Swap orders then pop off the old order that is now at the end of vector
-        orders.pop();
+        let order_index = orders.iter().position(|o| o.trader_id == order.trader_id);
 
-
-        // TODO error checking + make this less dumb
-        // If there is no order to cancel this will panic
+        if let Some(i) = order_index {
+        	// Add new order to end of the vector
+        	orders.push(order);
+        	let last = orders.len() - 1;
+        	orders.swap(i, last);
+    		// Swap orders then pop off the old order that is now at the end of vector
+        	orders.pop();
+        } else {
+        	println!("ERROR: order not found to update: {:?}", &order.trader_id)
+        }
     }
 
     pub fn cancel_order(&self, order: Order) {
@@ -58,12 +59,18 @@ impl Book {
         // Search for existing order's index
         let order_index: Option<usize> = orders.iter().position(|o| &o.trader_id == &order.trader_id);
 
-        match order_index {
-        	Some(i) => {
-        		orders.remove(i);
-        	},
-        	None => println!("ERROR: order not found to cancel: {}", &order.trader_id),
-        };
+        if let Some(i) = order_index {
+        	orders.remove(i);
+        } else {
+        	println!("ERROR: order not found to cancel: {:?}", &order.trader_id);
+        }
+    }
+
+    pub fn peek_id_pos(&self, trader_id: String) -> Option<usize> {
+    	// Acquire the lock
+        let orders = self.orders.lock().unwrap();
+        // Search for existing order's index
+        orders.iter().position(|o| o.trader_id == trader_id)
     }
 
     pub fn update_max_price(&self, p_high: &f64) {
@@ -94,6 +101,26 @@ impl Book {
     pub fn get_max_price(&self) -> f64 {
     	let price = self.max_price.lock().unwrap();
     	price.clone() as f64
+    }
+
+    pub fn find_new_max(&self) {
+    	// find the order with the max price (from sorted list):
+    	let orders = self.orders.lock().unwrap();
+
+    	let new_max = orders.last().unwrap().p_high;
+
+    	let mut max_price = self.max_price.lock().unwrap();
+    	*max_price = new_max;
+    }
+
+    pub fn find_new_min(&self) {
+    	// find the order with the min price
+    	let orders = self.orders.lock().unwrap();
+    	let start = MAX;
+    	let new_min = orders.iter().fold(start, |min, order| if order.p_low < min {order.p_low} else {min});
+
+    	let mut min_price = self.min_price.lock().unwrap();
+    	*min_price = new_min;
     }
 }
 
@@ -187,7 +214,9 @@ pub fn process_enter(order: Order, book: Arc<Book>) -> JoinHandle<()> {
 
 // Updates an order in the Bids or Asks Book
 pub fn process_update(order: Order, book: Arc<Book>) -> JoinHandle<()> {
-    // Spawn a new thread to cancel and enter
+	// update min/max if this overwrites current min/max OR this order contains new min/max
+	// ..
+    // Spawn a new thread to update
     thread::spawn(move || {
     	book.update_order(order);
     })
@@ -195,9 +224,23 @@ pub fn process_update(order: Order, book: Arc<Book>) -> JoinHandle<()> {
 
 // Cancels the order living in the Bids or Asks Book
 pub fn process_cancel(order: Order, book: Arc<Book>) -> JoinHandle<()> {
+	
     // Spawn a new thread to cancel and enter
     thread::spawn(move || {
-    	book.cancel_order(order);
+		let p_high = order.p_high.clone();
+		let p_low = order.p_low.clone();
+
+		book.cancel_order(order);
+
+		// update min/max if we just cancelled previous min/max
+		if p_high == book.get_max_price() {
+			book.find_new_max();
+		}
+		if p_low == book.get_min_price() && p_low != 0.0 {
+			book.find_new_min();
+			println!("Cancelling old min price");
+		}
+    	
     })
 }
 

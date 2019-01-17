@@ -156,6 +156,161 @@ pub fn test_find_crossing_price() {
 }
 
 
+#[test]
+pub fn test_update_order() {
+    let queue = Arc::new(common::setup_queue());
+	let bids_book = Arc::new(common::setup_bids_book());
+	let asks_book = Arc::new(common::setup_asks_book());
+	
+	// Setup bids and asks
+	let (mut bids, asks) = common::setup_orders();
+	bids[0].trader_id = format!("jason");
+	let mut handles = Vec::new();
+
+	// Send all the orders in parallel 
+	for bid in bids {
+		handles.push(conc_recv_order(bid, Arc::clone(&queue)));
+	}
+	for ask in asks {
+		handles.push(conc_recv_order(ask, Arc::clone(&queue)));
+	}
+
+	// Wait for the threads to finish
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	// Process all of the orders in the queue
+	let handles = conc_process_order_queue(Arc::clone(&queue), 
+							Arc::clone(&bids_book),
+							Arc::clone(&asks_book));
+
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	assert_eq!(bids_book.len(), 100);
+	assert_eq!(asks_book.len(), 100);
+
+	// Create a new order to update book 
+	let mut update_order = common::setup_bid_order();
+	update_order.trader_id = format!("jason");
+	update_order.order_type = OrderType::Update;
+	update_order.p_low = 99.9;
+	update_order.p_high = 555.5;
+
+	// Send new order to queue
+	conc_recv_order(update_order, Arc::clone(&queue)).join().unwrap();
+
+	// Process queue
+	let handles = conc_process_order_queue(Arc::clone(&queue), 
+							Arc::clone(&bids_book),
+							Arc::clone(&asks_book));
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	// Books should be same length
+	assert_eq!(bids_book.len(), 100);
+	assert_eq!(asks_book.len(), 100);
+
+	// Find the order with id "jason"
+	let index = bids_book.peek_id_pos(format!("jason"));
+
+	// Unwrap the index and check order has been updating
+	if let Some(i) = index {
+		let order = &bids_book.orders.lock().unwrap()[i];
+		assert_eq!(order.trader_id, format!("jason"));
+		assert_eq!(order.p_low, 99.9);
+		assert_eq!(order.p_high, 555.5);
+		assert_eq!(order.order_type, OrderType::Update);
+	} else {
+		panic!("Update Order should exist");
+	}
+
+}
+
+#[test]
+pub fn test_cancel_order() {
+    let queue = Arc::new(common::setup_queue());
+	let bids_book = Arc::new(common::setup_bids_book());
+	let asks_book = Arc::new(common::setup_asks_book());
+	
+	// Setup bids and asks
+	let (mut bids, asks) = common::setup_orders();
+	bids[0].trader_id = format!("jason");
+	bids[0].p_high = 99999.9;
+	bids[0].p_low = -1.0; // negative to test a low min price
+	let mut handles = Vec::new();
+
+	// Send all the orders in parallel 
+	for bid in bids {
+		handles.push(conc_recv_order(bid, Arc::clone(&queue)));
+	}
+	for ask in asks {
+		handles.push(conc_recv_order(ask, Arc::clone(&queue)));
+	}
+
+	// Wait for the threads to finish
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	// Process all of the orders in the queue
+	let handles = conc_process_order_queue(Arc::clone(&queue), 
+							Arc::clone(&bids_book),
+							Arc::clone(&asks_book));
+
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	assert_eq!(bids_book.len(), 100);
+	assert_eq!(asks_book.len(), 100);
+
+	// New max price will be equal to mutated order 
+	assert_eq!(bids_book.get_max_price(), 99999.9);
+	assert_eq!(bids_book.get_min_price(), -1.0);
+
+	// Create a new order to update book 
+	let mut update_order = common::setup_bid_order();
+	update_order.trader_id = format!("jason");
+	update_order.p_high = 99999.9;
+	update_order.order_type = OrderType::Cancel;
+	update_order.p_low = -1.0; // negative to test a low min price
+
+	// Send new order to queue
+	conc_recv_order(update_order, Arc::clone(&queue)).join().unwrap();
+
+	// Process queue
+	let handles = conc_process_order_queue(Arc::clone(&queue), 
+							Arc::clone(&bids_book),
+							Arc::clone(&asks_book));
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	// Books should be same length
+	assert_eq!(bids_book.len(), 99);
+	assert_eq!(asks_book.len(), 100);
+
+	// Find the order with id "jason"
+	let index = bids_book.peek_id_pos(format!("jason"));
+
+	// Unwrap the index and check order has been updating
+	if let Some(_) = index {
+		panic!("Cancel Order should not exist anymore");
+	} 
+
+	// The new max price will be updated to something lower once order has been cancelled
+	assert_ne!(bids_book.get_max_price(), 99999.9);
+
+	// New min price will be 1.0 since orders iterated from p_lows 0..100 and we mutated the 0th order
+	assert_ne!(bids_book.get_min_price(), -1.0);
+	assert_eq!(bids_book.get_min_price(), 1.0);
+}
+
+
 
 
 

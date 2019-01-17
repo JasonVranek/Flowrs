@@ -66,11 +66,9 @@ pub fn auction_interval(bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State
 	    		let mut state = state.lock().unwrap();
 	    		*state = State::Auction;
 	    	}
-	    	let now = SystemTime::now();
-	    	println!("Starting Auction");
+	    	println!("Starting Auction @{:?}", get_time());
 	    	let cross_price = auction::bs_cross(Arc::clone(&bids), Arc::clone(&asks)).unwrap();
-	    	let done = now.elapsed().unwrap().subsec_nanos();
-	    	println!("Found Cross at @{} \nP = {}", done, cross_price);
+	    	println!("Found Cross at @{:?} \nP = {}", get_time(), cross_price);
 	    	{
 	    		// Change the state back to process to allow the books to be mutated again
 	    		let mut state = state.lock().unwrap();
@@ -98,7 +96,7 @@ pub fn process_queue_interval(queue: Arc<Queue>, bids: Arc<Book>, asks: Arc<Book
 					for h in handles {
 						h.join().unwrap();
 					}
-					println!("Processing order queue");
+					// println!("Processing order queue");
     			},
     			State::Auction => println!("Can't process order queue because auction!"),
     			State::PreAuction => println!("Can't process order queue because pre-auction!"),
@@ -171,6 +169,10 @@ pub fn order_from_json(msg: serde_json::Value) -> Option<Order> {
 }
 
 
+pub fn get_time() -> Duration {
+	SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
+                         .expect("SystemTime::duration_since failed")
+}
 
 
 

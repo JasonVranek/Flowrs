@@ -35,7 +35,7 @@ fn main() {
 		                          Arc::clone(&state), batch_interval);
 
 	// spawn task that processes order queue every queue_interval (milliseconds)
-	let queue_interval = 1000;
+	let queue_interval = 100;
 	let queue_task = flow_rs::process_queue_interval(Arc::clone(&queue), 
 		                                             Arc::clone(&bids_book), 
 		                                             Arc::clone(&asks_book),
@@ -56,7 +56,7 @@ fn main() {
 
         // Spawn a task that converts JSON to an Order and adds to queue
         tokio::spawn(deserialized.for_each(move |msg| {
-            // println!("GOT: {:?}", msg);
+            println!("GOT: {:?} @ {:?}", msg, flow_rs::get_time());
             flow_rs::process_new(msg, Arc::clone(&queue));
             Ok(())
         }));

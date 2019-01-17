@@ -88,11 +88,14 @@ pub fn gen_rand_cancels(t_struct: Arc<Traders>, upper: u32) -> Vec<(String, Orde
 
 		let length_before = orders.len();
 
-		// Iterate through hashmap and cancel based on rng
+		// Iterate through hashmap and filter out orders based on rng
 		orders.retain(|_, value| {
 			let rand = rng.gen_range(0, upper);
+			// order was randomly selected to be cancelled
 			if rand == 1 {
+				// copy order's params for cancel json
 				let mut p = params_for_json(value);
+				// update OrderType to be a cancel order
 				p.1 = OrderType::Cancel;
 				to_send.push(p)
 			}
@@ -120,7 +123,8 @@ pub fn rand_enters(upper: u64) -> Vec<Order> {
 }
 
 pub fn rand_ask_enter() -> Order {
-	let (p_l, p_h) = gen_prices();
+	let mut rng = rand::thread_rng();
+	let (p_l, p_h) = gen_prices(rng.gen_range(0, 200));
 	// let coefs = rand_coef_vector();
 	let id = gen_order_id();
 	let u_max = gen_u_max(500.0);
@@ -137,7 +141,8 @@ pub fn rand_ask_enter() -> Order {
 }
 
 pub fn rand_bid_enter() -> Order {
-	let (p_l, p_h) = gen_prices();
+	let mut rng = rand::thread_rng();
+	let (p_l, p_h) = gen_prices(rng.gen_range(0, 200));
 	// let coefs = rand_coef_vector();
 	let id = gen_order_id();
 	let u_max = gen_u_max(500.0);
@@ -165,16 +170,16 @@ pub fn rand_update_order(old: &Order) -> Order {
 
 }
 
-pub fn gen_prices() -> (f64, f64) {
+pub fn gen_prices(upper: u64) -> (f64, f64) {
 	// Create a random pair of (p_low, p_high)
 	let mut rng = rand::thread_rng();
 	let mut p_l: f64 = rng.gen();
-	p_l *= 50.0;
+	p_l *= (upper / 2) as f64;
 	let mut p_h: f64 = rng.gen();
-	p_h *= 100.0;
+	p_h *= upper as f64;
 	while p_h < p_l {
 		p_h = rng.gen();
-		p_h *= 100.0;
+		p_h *= upper as f64;
 	}
 	(p_l, p_h)
 }
