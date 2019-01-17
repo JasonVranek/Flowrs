@@ -71,13 +71,37 @@ pub fn gen_rand_updates(t_struct: Arc<Traders>, upper: u32) -> Vec<(String, Orde
 				// send the order over tcp as json
 				let p = params_for_json(order);
 				to_send.push(p);
-				println!("Before order: {:?} {} {} {} -> {:?} {} {} {}", order.order_type, order.p_low, order.p_high,
-					order.u_max, new_order.order_type, new_order.p_low, new_order.p_high,
-					new_order.u_max);
 				// save the new order in the hashmap
 				*order = new_order;
 			}
 		}
+		to_send
+	}
+
+pub fn gen_rand_cancels(t_struct: Arc<Traders>, upper: u32) -> Vec<(String, OrderType, TradeType, f64, f64, f64)> {
+		let mut rng = rand::thread_rng();
+		// Get a lock on the HashMap 
+		let mut orders = t_struct.traders.lock().unwrap();
+
+		// Vector of tuples to construct JSON messages
+		let mut to_send: Vec<_> = Vec::new();
+
+		let length_before = orders.len();
+
+		// Iterate through hashmap and cancel based on rng
+		orders.retain(|_, value| {
+			let rand = rng.gen_range(0, upper);
+			if rand == 1 {
+				let mut p = params_for_json(value);
+				p.1 = OrderType::Cancel;
+				to_send.push(p)
+			}
+
+			// (1 / upper) chance of cancelling the given order
+			!(rand == 1)
+		});
+
+		assert_eq!(length_before, orders.len() + to_send.len());
 		to_send
 	}
 
