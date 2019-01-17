@@ -21,6 +21,14 @@ impl Traders {
 		traders.entry(order.trader_id.clone()).or_insert(order);
 	}
 
+	pub fn new_traders(&mut self, orders: Vec<Order>) {
+		// or_insert will not overwrite an existing entry, but will insert if the key doesn't exist
+		let mut traders = self.traders.lock().unwrap();
+		for order in orders {
+			traders.entry(order.trader_id.clone()).or_insert(order);
+		}
+	}
+
 	pub fn update_trader(&mut self, order: Order) {
 		self.traders.lock().unwrap().insert(order.trader_id.clone(), order);
 	}
@@ -28,8 +36,21 @@ impl Traders {
 	pub fn del_trader(&mut self, trader_id: String) {
 		self.traders.lock().unwrap().remove(&trader_id);
 	}
-
 }
+
+pub fn rand_enters() -> Vec<Order>{
+	let mut rng = rand::thread_rng();
+	let mut orders = Vec::<Order>::new();
+	for _ in 0..rng.gen() {
+		orders.push(rand_bid_enter());
+	}
+
+	for _ in 0..rng.gen() {
+		orders.push(rand_ask_enter());
+	}
+	orders
+}
+
 
 
 pub fn rand_ask_enter() -> Order {
@@ -64,6 +85,18 @@ pub fn rand_bid_enter() -> Order {
 		p_wise_dem(p_l, p_h, u_max),
 		// poly_clos_from_coef(coefs),
 	)
+}
+
+pub fn rand_update_order(old: Order) -> Order {
+	// randomizes the fields of an order but retains trade_id and trade_type
+    let mut new = match old.trade_type {
+    	TradeType::Bid => rand_bid_enter(),
+    	TradeType::Ask => rand_ask_enter(),
+    };
+
+    new.trader_id = old.trader_id.clone();
+    new
+
 }
 
 pub fn gen_prices() -> (f64, f64) {
