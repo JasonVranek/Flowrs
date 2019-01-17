@@ -21,7 +21,7 @@ impl Traders {
 		traders.entry(order.trader_id.clone()).or_insert(order);
 	}
 
-	pub fn new_traders(&mut self, orders: Vec<Order>) {
+	pub fn new_traders(&self, orders: Vec<Order>) {
 		// or_insert will not overwrite an existing entry, but will insert if the key doesn't exist
 		let mut traders = self.traders.lock().unwrap();
 		for order in orders {
@@ -38,14 +38,15 @@ impl Traders {
 	}
 }
 
-pub fn rand_enters() -> Vec<Order>{
+pub fn rand_enters(upper: u64) -> Vec<Order> {
 	let mut rng = rand::thread_rng();
 	let mut orders = Vec::<Order>::new();
-	for _ in 0..rng.gen() {
+
+	for _ in 0..rng.gen_range(0, upper) {
 		orders.push(rand_bid_enter());
 	}
 
-	for _ in 0..rng.gen() {
+	for _ in 0..rng.gen_range(0, upper) {
 		orders.push(rand_ask_enter());
 	}
 	orders
@@ -149,6 +150,12 @@ mod tests {
 
 		assert_eq!(t_struct.traders.lock().unwrap().len(), 2);
 	}
+
+	// #[test]
+	// fn test_rand_enters() {
+	// 	let orders = rand_enters(100);
+	// 	assert_eq!(orders.len(), 5);
+	// }
 }
 
 
