@@ -19,9 +19,9 @@ use tokio_serde_json::ReadJson;
 
 fn main() {
 	// start listener for tcp connections
-	// let (queue, bids_book, asks_book, state) = flow_rs::setup();
-    
-    let (queue, bids_book, asks_book, state) = fill_book();
+	let (queue, bids_book, asks_book, state) = flow_rs::setup();
+
+    // let (queue, bids_book, asks_book, state) = fill_book();
 
     // Bind a TcpListener to a local port
 	let addr = "127.0.0.1:6142".parse().unwrap();
@@ -56,7 +56,7 @@ fn main() {
 
         // Spawn a task that converts JSON to an Order and adds to queue
         tokio::spawn(deserialized.for_each(move |msg| {
-            println!("GOT: {:?} @ {:?}", msg, flow_rs::get_time());
+            // println!("GOT: {:?} @ {:?}", msg, flow_rs::get_time());
             flow_rs::process_new(msg, Arc::clone(&queue));
             Ok(())
         }));

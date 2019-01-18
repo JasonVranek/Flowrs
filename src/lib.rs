@@ -16,6 +16,7 @@ extern crate serde_json;
 pub mod io;
 pub mod exchange;
 
+#[derive(Debug)]
 pub enum State {
 	Process,
 	PreAuction,
@@ -62,13 +63,18 @@ pub fn auction_interval(bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State
 	let task = Interval::new(Instant::now(),  Duration::from_millis(duration))
 	    .for_each(move |_| {
 	    	{
-	    		// Obtain lock on the global state and switch to Auction mode
+	    		// Obtain lock on the global state and switch to Auction mode, will stop
+	    		// the queue from being processed.
 	    		let mut state = state.lock().unwrap();
 	    		*state = State::Auction;
 	    	}
 	    	println!("Starting Auction @{:?}", get_time());
-	    	let cross_price = auction::bs_cross(Arc::clone(&bids), Arc::clone(&asks)).unwrap();
-	    	println!("Found Cross at @{:?} \nP = {}", get_time(), cross_price);
+	    	if let Some(cross_price) = auction::bs_cross(Arc::clone(&bids), Arc::clone(&asks)) {
+	    		println!("Found Cross at @{:?} \nP = {}\n", get_time(), cross_price);
+	    	} else {
+	    		println!("Error, Cross not found\n");
+	    	}
+	    	
 	    	{
 	    		// Change the state back to process to allow the books to be mutated again
 	    		let mut state = state.lock().unwrap();

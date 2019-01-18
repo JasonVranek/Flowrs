@@ -9,8 +9,8 @@ pub fn test_auction_mod() {
 // Iterate over each order in parallel and compute
 // the closure for each. 
 pub fn calc_aggs(p: f64, bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {
-	let bids = bids.orders.lock().unwrap();
-	let asks = asks.orders.lock().unwrap();
+	let bids = bids.orders.lock().expect("ERROR: No bids to aggregate");
+	let asks = asks.orders.lock().expect("ERROR: No bids to aggregate");
 
 	let agg_demand: f64 = bids.par_iter()
 	    .map(|order| {
