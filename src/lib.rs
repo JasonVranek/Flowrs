@@ -3,6 +3,7 @@ use std::sync::{Mutex, Arc};
 use tokio::prelude::*;
 use tokio::timer::Interval;
 use std::time::{Duration, Instant, SystemTime};
+use tokio::net::{TcpListener};
 
 use crate::exchange::order_book::*;
 use crate::io::order::*;
@@ -12,6 +13,11 @@ use crate::exchange::auction;
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
+extern crate tokio_serde_json;
+
+use tokio::codec::{FramedRead, LengthDelimitedCodec};
+use serde_json::Value;
+use tokio_serde_json::ReadJson;
 
 pub mod io;
 pub mod exchange;
@@ -112,6 +118,42 @@ pub fn process_queue_interval(queue: Arc<Queue>, bids: Arc<Book>, asks: Arc<Book
         .map_err(|e| println!("Error processing order iterval: {}", e));
 
     Box::new(task)
+}
+
+pub fn tcp_server(queue: Arc<Queue>, address: String) -> Box<Future<Item = (), Error = ()> + Send> 
+{	
+	 // Bind a TcpListener to a local port
+	let addr = address.parse().unwrap();
+	let listener = TcpListener::bind(&addr).unwrap();
+
+	// start a tcp server that accepts JSON objects 
+	let tcp_server = listener.incoming().for_each(move |socket| {
+		// Clone the queue into the closure
+		let queue = Arc::clone(&queue);
+
+		// Delimit frames using a length header
+        let length_delimited = FramedRead::new(socket, LengthDelimitedCodec::new());
+
+        // Deserialize frames
+        let deserialized = ReadJson::<_, Value>::new(length_delimited)
+            .map_err(|e| println!("ERR: {:?}", e));
+
+        // Spawn a task that converts JSON to an Order and adds to queue
+        tokio::spawn(deserialized.for_each(move |msg| {
+            // println!("GOT: {:?} @ {:?}", msg, flow_rs::get_time());
+            process_new(msg, Arc::clone(&queue));
+            Ok(())
+        }));
+
+        Ok(())
+    })
+    .map_err(|_| ());
+
+
+	println!("Running server on localhost:6142");
+    
+
+    Box::new(tcp_server)
 }
 
 

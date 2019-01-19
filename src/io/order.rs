@@ -2,11 +2,7 @@ pub fn test_order_mod() {
 	println!("Hello, order!");
 }
 
-pub fn add_one(num: u32) -> u32 {
-	num + 1
-}
-
-// Enum for matching over order types
+/// Enum for matching over order types
 #[derive(Debug, PartialEq)]
 pub enum OrderType {
     Enter,
@@ -40,27 +36,33 @@ impl Clone for TradeType {
 		}
 	}
 }
+
+/// The internal data structure that the flow market operates on. 
+/// trader_id: String -> identifier of the trader and their order
+/// order_type: OrderType{Enter, Update, Cancel} -> identifies how the order is used by the exchange
+/// trade_type: TradeType{Bid, Ask} -> decides which order book the order is placed in 
+/// p_low: f64 -> trader's low price
+/// p_high: f64 -> trader's high price
+/// u_max: f64 -> trader's max rate to trade
+/// function: Box<Fn(f64) -> f64> -> trader's custom closure that defines their demand/supply schedule
 pub struct Order {
-	pub trader_id: String,			// address of the trader
-	pub order_type: OrderType,	// Enter, Update, Cancel
-	pub trade_type: TradeType,  // Bid, Ask
-	pub p_low: f64,				// trader's low price
-	pub p_high: f64,			// trader's high price
-	pub u_max: f64,
+	pub trader_id: String,		
+	pub order_type: OrderType,	
+	pub trade_type: TradeType,  
+	pub p_low: f64,				
+	pub p_high: f64,			
+	pub u_max: f64,				
 	function: Box<
 	    		Fn(f64) -> f64 
 	    		+ Send 
 	    		+ Sync 
-	    		+ 'static>,	    // trader's custom closure on heap
+	    		+ 'static>,	    
 }
 
 impl Order {
-    pub fn new(
-    	t_id: String, 
-    	o_t: OrderType, 
-    	t_t: TradeType, 
-    	pl: f64, ph: f64, u: f64,
-    	function: Box<Fn(f64) -> f64 + Send + Sync + 'static>) -> Order {
+    pub fn new(t_id: String, o_t: OrderType, t_t: TradeType, pl: f64, ph: f64, u: f64,
+    	function: Box<Fn(f64) -> f64 + Send + Sync + 'static>) -> Order 
+    {
     	Order {
     		trader_id: t_id,		
 			order_type: o_t,	
@@ -85,24 +87,10 @@ impl Order {
     }
 }
 
-// impl Clone for Order {
-// 	fn clone(&self) -> Order { 
-// 		Order {
-// 			trader_id: self.trader_id.clone(),
-// 			order_type: self.order_type.clone(),	
-// 			trade_type: self.trade_type.clone(),  
-// 			p_low: self.p_low.clone(),				
-// 			p_high: self.p_high.clone(),	
-// 			u_max: self.u_max.clone(),		
-// 			function: Box::new(|x| -> f64),	
-// 		} 
-// 	} 	
-// }
 
 	/// Creates a closure from an array of floats. This closure is the 
 	/// equivalent to a polynomial. 
 	/// For example: coef = [3, 5, 4, 1] => 3x^3 + 5x^2 + 4x + 1
-    // pub fn poly_clos_from_coef(coefs: &'static [f64]) -> 
     pub fn poly_clos_from_coef(coefs: Vec<f64>) -> 
         Box<Fn(f64) -> f64 + Send + Sync + 'static>
     {
@@ -123,6 +111,9 @@ impl Order {
         iter
     }
 
+    /// Creates a piecewise linear demand schedule closure from the 
+    /// p_low, p_high, and u_max parameters. The input 'x: f64' to the closure
+    /// is the price and the output is the shares at that price.
     pub fn p_wise_dem(p_l: f64, p_h: f64, u: f64) -> Box<Fn(f64) -> f64 + Send + Sync + 'static> {
     	let func = Box::new(move |x: f64| -> f64 {
     		if x <= p_l {
@@ -136,6 +127,9 @@ impl Order {
     	func
     }
 
+    /// Creates a piecewise linear supply schedule closure from the 
+    /// p_low, p_high, and u_max parameters. The input 'x: f64' to the closure
+    /// is the price and the output is the shares at that price.
     pub fn p_wise_sup(p_l: f64, p_h: f64, u: f64) -> Box<Fn(f64) -> f64 + Send + Sync + 'static> {
     	let func = Box::new(move |x: f64| -> f64 {
     		if x < p_l {
@@ -153,11 +147,6 @@ impl Order {
 #[cfg(test)]
 mod tests {
 	use super::*;
-
-	#[test]
-	fn test_add_one() {
-		assert_eq!(2, add_one(1));
-	}
 
 	#[test]
 	fn test_new_order() {

@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 rayon = "1.0"
-rand = "0.3.14"
+rand = "0.6.4"
 tokio = "0.1.14"
 futures = "0.1"
 tokio-serde-json = "0.2"
