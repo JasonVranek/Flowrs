@@ -1,9 +1,9 @@
 // extern crate <name_of_my_crate_to_test>
-use flow_rs::exchange::queue_processing::conc_process_order_queue;
-use flow_rs::exchange::order_processing::conc_recv_order;
+use flow_rs::exchange::queue_processing::QueueProcessor;
+use flow_rs::exchange::order_processing::OrderProcessor;
 use flow_rs::exchange::order_processing::*;
-use flow_rs::exchange::order::*;
-use flow_rs::exchange::auction;
+use flow_rs::order::*;
+use flow_rs::exchange::auction::Auction;
 use std::sync::Arc;
 
 // Include the common module for setting up state for tests
@@ -45,7 +45,7 @@ fn test_conc_queue_recv_order() {
 	order.p_high = 199.0;
 
 	// Accept order in a new thread
-	let handle = conc_recv_order(order, Arc::clone(&queue));
+	let handle = OrderProcessor::conc_recv_order(order, Arc::clone(&queue));
 
 	// Wait for thread to finish
 	handle.join().unwrap();
@@ -76,10 +76,10 @@ fn test_process_queue() {
 
 	// Send all the orders in parallel 
 	for bid in bids {
-		handles.push(conc_recv_order(bid, Arc::clone(&queue)));
+		handles.push(OrderProcessor::conc_recv_order(bid, Arc::clone(&queue)));
 	}
 	for ask in asks {
-		handles.push(conc_recv_order(ask, Arc::clone(&queue)));
+		handles.push(OrderProcessor::conc_recv_order(ask, Arc::clone(&queue)));
 	}
 
 	// Wait for the threads to finish
@@ -88,7 +88,7 @@ fn test_process_queue() {
 	}
 
 	// Process all of the orders in the queue
-	let handles = conc_process_order_queue(Arc::clone(&queue), 
+	let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
 							Arc::clone(&bids_book),
 							Arc::clone(&asks_book));
 
@@ -109,7 +109,7 @@ fn test_process_queue() {
 	assert_eq!(a_max_price, 100.0);
 	assert_eq!(a_min_price, 0.0);
 
-	let (min, max) = auction::get_price_bounds(Arc::clone(&bids_book), Arc::clone(&asks_book));
+	let (min, max) = Auction::get_price_bounds(Arc::clone(&bids_book), Arc::clone(&asks_book));
 	assert_eq!(min, 0.0);
 	assert_eq!(max, 100.0);
 
@@ -127,10 +127,10 @@ pub fn test_find_crossing_price() {
 
 	// Send all the orders in parallel 
 	for bid in bids {
-		handles.push(conc_recv_order(bid, Arc::clone(&queue)));
+		handles.push(OrderProcessor::conc_recv_order(bid, Arc::clone(&queue)));
 	}
 	for ask in asks {
-		handles.push(conc_recv_order(ask, Arc::clone(&queue)));
+		handles.push(OrderProcessor::conc_recv_order(ask, Arc::clone(&queue)));
 	}
 
 	// Wait for the threads to finish
@@ -139,7 +139,7 @@ pub fn test_find_crossing_price() {
 	}
 
 	// Process all of the orders in the queue
-	let handles = conc_process_order_queue(Arc::clone(&queue), 
+	let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
 							Arc::clone(&bids_book),
 							Arc::clone(&asks_book));
 
@@ -150,7 +150,7 @@ pub fn test_find_crossing_price() {
 	assert_eq!(bids_book.len(), 100);
 	assert_eq!(asks_book.len(), 100);
 
-	let cross_price = auction::bs_cross(Arc::clone(&bids_book), Arc::clone(&asks_book)).unwrap();
+	let cross_price = Auction::bs_cross(Arc::clone(&bids_book), Arc::clone(&asks_book)).unwrap();
 	assert_eq!(cross_price, 81.09048166081236);
 }
 
@@ -168,10 +168,10 @@ pub fn test_update_order() {
 
 	// Send all the orders in parallel 
 	for bid in bids {
-		handles.push(conc_recv_order(bid, Arc::clone(&queue)));
+		handles.push(OrderProcessor::conc_recv_order(bid, Arc::clone(&queue)));
 	}
 	for ask in asks {
-		handles.push(conc_recv_order(ask, Arc::clone(&queue)));
+		handles.push(OrderProcessor::conc_recv_order(ask, Arc::clone(&queue)));
 	}
 
 	// Wait for the threads to finish
@@ -180,7 +180,7 @@ pub fn test_update_order() {
 	}
 
 	// Process all of the orders in the queue
-	let handles = conc_process_order_queue(Arc::clone(&queue), 
+	let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
 							Arc::clone(&bids_book),
 							Arc::clone(&asks_book));
 
@@ -199,10 +199,10 @@ pub fn test_update_order() {
 	update_order.p_high = 555.5;
 
 	// Send new order to queue
-	conc_recv_order(update_order, Arc::clone(&queue)).join().unwrap();
+	OrderProcessor::conc_recv_order(update_order, Arc::clone(&queue)).join().unwrap();
 
 	// Process queue
-	let handles = conc_process_order_queue(Arc::clone(&queue), 
+	let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
 							Arc::clone(&bids_book),
 							Arc::clone(&asks_book));
 	for h in handles {
@@ -244,10 +244,10 @@ pub fn test_cancel_order() {
 
 	// Send all the orders in parallel 
 	for bid in bids {
-		handles.push(conc_recv_order(bid, Arc::clone(&queue)));
+		handles.push(OrderProcessor::conc_recv_order(bid, Arc::clone(&queue)));
 	}
 	for ask in asks {
-		handles.push(conc_recv_order(ask, Arc::clone(&queue)));
+		handles.push(OrderProcessor::conc_recv_order(ask, Arc::clone(&queue)));
 	}
 
 	// Wait for the threads to finish
@@ -256,7 +256,7 @@ pub fn test_cancel_order() {
 	}
 
 	// Process all of the orders in the queue
-	let handles = conc_process_order_queue(Arc::clone(&queue), 
+	let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
 							Arc::clone(&bids_book),
 							Arc::clone(&asks_book));
 
@@ -279,10 +279,10 @@ pub fn test_cancel_order() {
 	update_order.p_low = -1.0; // negative to test a low min price
 
 	// Send new order to queue
-	conc_recv_order(update_order, Arc::clone(&queue)).join().unwrap();
+	OrderProcessor::conc_recv_order(update_order, Arc::clone(&queue)).join().unwrap();
 
 	// Process queue
-	let handles = conc_process_order_queue(Arc::clone(&queue), 
+	let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
 							Arc::clone(&bids_book),
 							Arc::clone(&asks_book));
 	for h in handles {

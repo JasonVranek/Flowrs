@@ -1,5 +1,5 @@
 use core::f64::MAX;
-use crate::exchange::order::{Order, TradeType};
+use crate::order::{Order, TradeType};
 
 use std::sync::Mutex;
 use std::io;
@@ -151,7 +151,7 @@ impl Book {
 #[cfg(test)]
 mod tests {
 	use super::*;
-    use crate::exchange::order::{Order, TradeType, OrderType};
+    use crate::order::{Order, TradeType, OrderType};
     use std::sync::{Mutex, Arc};
     use std::thread;
 

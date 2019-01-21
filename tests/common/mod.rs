@@ -1,8 +1,8 @@
 extern crate flow_rs;
-use flow_rs::exchange::order_processing::*;
+use flow_rs::exchange::order_processing::OrderProcessor;
 use flow_rs::simulation::trader_behavior::*;
 use flow_rs::exchange::queue::*;
-use flow_rs::exchange::order::*;
+use flow_rs::order::*;
 use flow_rs::exchange::order_book::*;
 use std::sync::Arc;
 use rand::Rng;
@@ -68,7 +68,7 @@ pub fn setup_full_queue() -> Arc<Queue> {
 	let mut handles: Vec<_> = Vec::new();
 
 	for order in each_order_type() {
-		handles.push(conc_recv_order(order, Arc::clone(&queue)));
+		handles.push(OrderProcessor::conc_recv_order(order, Arc::clone(&queue)));
 	}
 
 	for h in handles {
