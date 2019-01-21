@@ -193,10 +193,7 @@ pub fn rand_update_order(old: &Order) -> Order {
 pub fn gen_prices() -> (f64, f64) {
 	let mut rng = thread_rng();
 	let p_l: f64 = rng.gen_range(0.0, 100.0);
-	let mut p_h: f64 = rng.gen_range(1.0, 200.0);
-	while p_h < p_l {
-		p_h = rng.gen_range(1.0, 200.0);
-	}
+	let p_h: f64 = rng.gen_range(p_l, 200.0);
 	(p_l, p_h)
 }
 
