@@ -1,11 +1,10 @@
 // extern crate <name_of_my_crate_to_test>
-use std::sync::{Mutex, Arc};
-use std::thread::sleep;
-use std::time::Duration;
-use flow_rs::io::order::*;
-use flow_rs::io::trader;
-use flow_rs::exchange::order_book::*;
+use flow_rs::exchange::queue_processing::conc_process_order_queue;
+use flow_rs::exchange::order_processing::conc_recv_order;
+use flow_rs::exchange::order_processing::*;
+use flow_rs::exchange::order::*;
 use flow_rs::exchange::auction;
+use std::sync::Arc;
 
 // Include the common module for setting up state for tests
 mod common;
@@ -22,13 +21,13 @@ fn default_test() {
 fn test_add_order_to_book() {
 	let bid = common::setup_bid_order();
 
-	let mut book = common::setup_bids_book();
+	let book = common::setup_bids_book();
 
 	book.add_order(bid);
 
 	assert_eq!(book.len(), 1);
 
-	let mut order = book.orders.lock().unwrap().pop().unwrap();
+	let order = book.orders.lock().unwrap().pop().unwrap();
 
 	// The default closure: -3x + 4
 	assert_eq!(order.calculate(5.0), -11.0);

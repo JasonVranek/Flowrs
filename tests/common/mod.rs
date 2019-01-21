@@ -1,9 +1,10 @@
 extern crate flow_rs;
-use flow_rs::io::trader::*;
-use flow_rs::io::order::*;
+use flow_rs::exchange::order_processing::*;
+use flow_rs::simulation::trader_behavior::*;
+use flow_rs::exchange::queue::*;
+use flow_rs::exchange::order::*;
 use flow_rs::exchange::order_book::*;
-use flow_rs::exchange::auction;
-use std::sync::{Mutex, Arc};
+use std::sync::Arc;
 use rand::Rng;
 
 pub fn setup() {

@@ -1,13 +1,19 @@
-use crate::io::trader::*;
+pub mod io;
+pub mod exchange;
+pub mod simulation;
+
+use crate::exchange::auction;
+use crate::exchange::order_book::*;
+use crate::exchange::order::*;
+use crate::exchange::order_processing::*;
+use crate::exchange::queue_processing::*;
+use crate::exchange::queue::*;
+
 use std::sync::{Mutex, Arc};
 use tokio::prelude::*;
 use tokio::timer::Interval;
 use std::time::{Duration, Instant, SystemTime};
 use tokio::net::{TcpListener};
-
-use crate::exchange::order_book::*;
-use crate::io::order::*;
-use crate::exchange::auction;
 
 #[macro_use]
 extern crate serde_derive;
@@ -19,8 +25,6 @@ use tokio::codec::{FramedRead, LengthDelimitedCodec};
 use serde_json::Value;
 use tokio_serde_json::ReadJson;
 
-pub mod io;
-pub mod exchange;
 
 #[derive(Debug)]
 pub enum State {
@@ -35,32 +39,6 @@ pub fn setup() -> (Arc<Queue>, Arc<Book>, Arc<Book>, Arc<Mutex<State>>) {
 	let bids_book = Arc::new(Book::new(TradeType::Bid));
 	let asks_book = Arc::new(Book::new(TradeType::Ask));
 	(queue, bids_book, asks_book, Arc::new(Mutex::new(State::Process)))
-}
-
-pub fn setup_orders() -> (Vec<Order>, Vec<Order>) {
-	let mut bids = Vec::<Order>::new();
-	let mut asks = Vec::<Order>::new();
-	for i in 0..100 {
-		bids.push(Order::new(
-			gen_order_id(), 
-    		OrderType::Enter, 
-    		TradeType::Bid, 
-    		i as f64, 
-    		100.0, 
-    		500.0,
-    		p_wise_dem(i as f64, 100.0, 500.0),
-		));
-		asks.push(Order::new(
-			gen_order_id(), 
-    		OrderType::Enter, 
-    		TradeType::Ask, 
-    		i as f64, 
-    		100.0, 
-    		500.0,
-    		p_wise_sup(i as f64, 100.0, 500.0),
-		));
-	}
-	(bids, asks)
 }
 
 pub fn auction_interval(bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State>>, duration: u64) 

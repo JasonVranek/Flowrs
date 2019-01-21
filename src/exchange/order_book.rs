@@ -1,9 +1,7 @@
 use core::f64::MAX;
-use crate::io::order::{Order, TradeType, OrderType};
+use crate::exchange::order::{Order, TradeType};
 
-use std::sync::{Mutex, Arc};
-use std::thread;
-use std::thread::JoinHandle;
+use std::sync::Mutex;
 use std::io;
 
 pub fn test_order_book_mod() {
@@ -150,131 +148,12 @@ impl Book {
 }
 
 
-pub struct Queue {
-    items: Mutex<Vec<Order>>,
-}
-
-impl Queue {
-	pub fn new() -> Queue {
-		Queue {
-			items: Mutex::new(Vec::<Order>::new()),
-		}
-	}
-
-	pub fn add(&self, order: Order) {
-        let mut items = self.items.lock().unwrap();
-        items.push(order);
-	}
-
-	pub fn pop(&self) -> Option<Order> {
-		let mut items = self.items.lock().unwrap();
-		items.pop()
-	}
-
-	pub fn pop_all(&self) -> Vec<Order> {
-		// Acquire the lock
-		let mut items = self.items.lock().unwrap();
-		// Pop all items out of the queue and return the contents as a vec
-		items.drain(..).collect()
-	}
-}
-
-// Preprocess message in a new thread and append to queue
-// order is the trader's order that this function takes ownership of
-// queue is an Arc clone of the Queue stored on the heap
-pub fn conc_recv_order(order: Order, queue: Arc<Queue>) -> JoinHandle<()> {
-    thread::spawn(move || {
-    	// The add function acquires the lock
-    	queue.add(order);
-    })
-}
-
-
-// Concurrently process orders in the queue. Each order is
-// either of OrderType::{Enter, Update, Cancel}. Each order will
-// modify the state of either the Bids or Asks Book, but must
-// first acquire a lock on the respective book. 
-pub fn conc_process_order_queue(queue: Arc<Queue>, 
-								bids: Arc<Book>, 
-								asks: Arc<Book>) 
-								-> Vec<JoinHandle<()>>{
-	// Acquire lock of Queue
-	// Pop off contents of Queue
-	// match over the OrderType
-	// process each order based on OrderType
-	let mut handles = Vec::<JoinHandle<()>>::new();
-	for order in queue.pop_all() {
-		let handle = match order.trade_type {
-			TradeType::Bid => {
-				match order.order_type {
-					OrderType::Enter => process_enter(order, Arc::clone(&bids)),
-					OrderType::Update => process_update(order, Arc::clone(&bids)),
-  	    			OrderType::Cancel => process_cancel(order, Arc::clone(&bids)),
-				}
-			}
-			TradeType::Ask => {
-				match order.order_type {
-					OrderType::Enter => process_enter(order, Arc::clone(&asks)),
-					OrderType::Update => process_update(order, Arc::clone(&asks)),
-  	    			OrderType::Cancel => process_cancel(order, Arc::clone(&asks)),
-				}
-			}
-		};
-		handles.push(handle);
-	}
-	handles
-}
-
-
-// Adds the order to the Bids or Asks Book
-pub fn process_enter(order: Order, book: Arc<Book>) -> JoinHandle<()> {
-	// Spawn a new thread to process the order
-    thread::spawn(move || {
-    	// add_order acquires the lock on the book before mutating
-    	book.update_max_price(&order.p_high);
-    	book.update_min_price(&order.p_low);
-    	book.add_order(order);
-    })
-}
-
-// Updates an order in the Bids or Asks Book
-pub fn process_update(order: Order, book: Arc<Book>) -> JoinHandle<()> {
-	// update min/max if this overwrites current min/max OR this order contains new min/max
-	// ..
-    // Spawn a new thread to update
-    thread::spawn(move || {
-    	book.update_order(order);
-    })
-}
-
-// Cancels the order living in the Bids or Asks Book
-pub fn process_cancel(order: Order, book: Arc<Book>) -> JoinHandle<()> {
-	
-    // Spawn a new thread to cancel and enter
-    thread::spawn(move || {
-		let p_high = order.p_high.clone();
-		let p_low = order.p_low.clone();
-
-		book.cancel_order(order);
-
-		// update min/max if we just cancelled previous min/max
-		if p_high == book.get_max_price() {
-			book.find_new_max();
-		}
-		if p_low == book.get_min_price() && p_low != 0.0 {
-			book.find_new_min();
-			println!("Cancelling old min price");
-		}
-    	
-    })
-}
-
-
-
-
 #[cfg(test)]
 mod tests {
 	use super::*;
+    use crate::exchange::order::{Order, TradeType, OrderType};
+    use std::sync::{Mutex, Arc};
+    use std::thread;
 
 	#[test]
 	fn test_new_book() {
