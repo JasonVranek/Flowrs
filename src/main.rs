@@ -1,14 +1,13 @@
 extern crate flow_rs;
-extern crate futures;
 extern crate tokio;
 
 use flow_rs::io::tcp_json::tcp_listener;
 use flow_rs::exchange::queue_processing::QueueProcessor;
 use flow_rs::exchange::auction::Auction;
+use flow_rs::controller::Controller;
 
-use futures::Future;
 use std::sync::Arc;
-use futures::future::{join_all};
+
 
 
 fn main() {
@@ -38,10 +37,8 @@ fn main() {
 	tasks.push(queue_task);
 	tasks.push(tcp_server);
 	
-	// Use join/join_all to combine futures into a single future to use in tokio::run
-	// tokio::run(tcp_server.join(queue_task).map(|_| ())
-	// 	.join(auction_task).map(|_| ()));
-	tokio::run(join_all(tasks).map(|_| ()));
+	
+	Controller::run(tasks);
 }
 
 
