@@ -6,6 +6,9 @@ use std::sync::{Mutex, Arc};
 use rayon::prelude::*;
 use crate::utility::get_time;
 
+
+const EPSILON: f64 =  0.000000000001;
+
 pub struct Auction {}
 
 impl Auction {
@@ -54,10 +57,10 @@ impl Auction {
 	    	let (dem, sup) = Auction::calc_aggs(index, Arc::clone(&bids), Arc::clone(&asks));
 	    	// println!("price_index: {}, dem: {}, sup: {}", index, dem, sup);
 
-	    	if dem > sup {
+	    	if Auction::greater_than_e(&dem, &sup) {
 	    		// We are left of the crossing point
 	    		left = index;
-	    	} else if dem < sup {
+	    	} else if Auction::less_than_e(&dem, &sup) {
 	    		// We are right of the crossing point
 	    		right = index;
 	    	} else {
@@ -73,7 +76,7 @@ impl Auction {
 	    None
 	}
 
-	pub fn get_price_bounds(bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {
+	pub fn get_price_bounds(bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {		
 		let bids_min: f64 = bids.get_min_price();
 		let bids_max: f64 = bids.get_max_price();
 		let asks_min: f64 = asks.get_min_price();
@@ -97,6 +100,38 @@ impl Auction {
 			std::cmp::Ordering::Equal => *a
 		}
 	}
+
+	// true if a > b
+	fn greater_than_e(a: &f64, b: &f64) -> bool {
+		let a = a.abs();
+		let b = b.abs();
+	    if (a - b).abs() > EPSILON && a - b > 0.0 {
+	    	return true;
+	    } else {
+	    	return false;
+	    }
+	}
+
+	// true if a < b
+	fn less_than_e(a: &f64, b: &f64) -> bool {
+		let a = a.abs();
+		let b = b.abs();
+	    if (a - b).abs() > EPSILON && a - b < 0.0 {
+	    	return true;
+	    } else {
+	    	return false;
+	    }
+	}
+
+	fn equal_e(a: &f64, b: &f64) -> bool {
+	    if (a - b).abs() < EPSILON {
+	    	return true;
+	    } else {
+	    	return false;
+	    }
+	}
+
+
 
 	pub fn async_auction_task(bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State>>, duration: u64) -> Task {
 		Task::rpt_task(move || {
