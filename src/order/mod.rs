@@ -1,5 +1,14 @@
 type CustClosure = Box<Fn(f64) -> f64 + Send + Sync + 'static>;
 
+
+//TODO make an order trait with desired functions so that people
+// can reimplement their own functions as long as the output is the same.
+
+
+
+
+
+
 /// Enum for matching over order types
 #[derive(Debug, PartialEq)]
 pub enum OrderType {

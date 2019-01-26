@@ -1,5 +1,6 @@
 # Flowrs
-Flow Market implemented in Rust
+Flow Market implemented in Rust based on the paper by Kyle and Lee:
+"Kyle, Albert (Pete) S. and Lee, Jeongmin, Toward a Fully Continuous Exchange (July 4, 2017)"
 
 Exchange runs on localhost:6142
 - Make sure binary is compiled to your operating system.

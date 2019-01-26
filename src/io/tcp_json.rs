@@ -1,6 +1,6 @@
 use crate::exchange::order_processing::JsonOrder;
 use crate::exchange::queue::Queue;
-use crate::controller::AsyncTask;
+use crate::controller::Task;
 
 use tokio::net::{TcpListener, TcpStream};
 use tokio::prelude::*;
@@ -9,10 +9,12 @@ use std::sync::Arc;
 /// A simple tcp server that listens for incoming messages asynchronously. Each message
 /// is parsed from a JSON into the internal Order type used in the exchange. This function
 /// returns an AsnycTask to be used by the Controller module running Tokio.
-pub fn tcp_listener(queue: Arc<Queue>, address: String) -> AsyncTask { 
+pub fn tcp_listener(queue: Arc<Queue>, address: String) -> Task { 
 	 // Bind a TcpListener to a local port
 	let addr = address.parse().unwrap();
 	let listener = TcpListener::bind(&addr).unwrap();
+
+    println!("Running server on {}", addr);
 
 	// start a tcp server that accepts JSON objects 
 	let tcp_server = listener.incoming().for_each(move |socket| {
@@ -33,16 +35,14 @@ pub fn tcp_listener(queue: Arc<Queue>, address: String) -> AsyncTask {
     })
     .map_err(|_| ());
 
-
-	println!("Running server on localhost:6142");
-    
-
-    Box::new(tcp_server)
+    Task {
+        task: Box::new(tcp_server),
+    }
 }
 
 
 /// Creates an asynchronous task that opens a TCP connection and sends a JSON order
-pub fn tcp_send_json(json: serde_json::Value, address: String) -> AsyncTask{
+pub fn tcp_send_json(json: serde_json::Value, address: String) -> Task{
     // let (t_id, ot, tt, pl, ph, u) = order_params;
     // Creates a JSON from a reference of an order and sends it over TCP
     let addr = address.parse().unwrap();
@@ -56,7 +56,9 @@ pub fn tcp_send_json(json: serde_json::Value, address: String) -> AsyncTask{
             .send(json).map(|_| ())
         }).map_err(|_| ());
 
-    Box::new(client)
+    Task {
+        task: Box::new(client),
+    }
 }
 
 

@@ -14,7 +14,7 @@ fn main() {
 	// start listener for tcp connections
 	let (queue, bids_book, asks_book, state) = flow_rs::setup_exchange();
 
-	let mut tasks = Vec::new();
+	let mut controller = Controller::new();
     
 	// spawn task run an auction every batch_interval (milliseconds)
 	let batch_interval = 3000;
@@ -33,12 +33,12 @@ fn main() {
 	// Spawn the tcp server task that listens for incoming orders in JSON format
 	let tcp_server = tcp_listener(Arc::clone(&queue), format!("127.0.0.1:6142"));
 
-	tasks.push(auction_task);
-	tasks.push(queue_task);
-	tasks.push(tcp_server);
+	controller.push(auction_task);
+	controller.push(queue_task);
+	controller.push(tcp_server);
 	
 	
-	Controller::run(tasks);
+	controller.run();
 }
 
 

@@ -1,11 +1,7 @@
 use crate::order::{Order, OrderType, TradeType};
 use crate::exchange::queue::Queue;
 use crate::exchange::order_book::Book;
-use crate::controller::{AsyncTask, State};
-
-use tokio::prelude::*;
-use tokio::timer::Interval;
-use std::time::{Duration, Instant};
+use crate::controller::{Task, State};
 
 use std::thread;
 use std::thread::JoinHandle;
@@ -67,7 +63,31 @@ impl QueueProcessor {
 		// ..
 	    // Spawn a new thread to update
 	    thread::spawn(move || {
-	    	book.update_order(order);
+	    	let p_high = order.p_high.clone();
+			let p_low = order.p_low.clone();
+	    	// If the order is not found, bubble error up
+	    	book.update_order(order).expect("AHHH no order to update");
+
+	    	let max_p = book.get_max_price();
+	    	let min_p = book.get_min_price();
+
+			if p_high == max_p {
+	    		// The order previously had the max market price
+				book.find_new_max();
+			} else if p_high > max_p {
+				// The order has a new max market price
+				book.update_max_price(&p_high);
+			}
+			
+			if p_low == min_p && p_low != 0.0 {
+				// The order previously had the min market price
+				book.find_new_min();
+				println!("Cancelling old min price");
+			} else if p_low < min_p {
+				// The order has a new min market price
+				book.update_min_price(&p_low);
+			}
+
 	    })
 	}
 
@@ -79,7 +99,8 @@ impl QueueProcessor {
 			let p_high = order.p_high.clone();
 			let p_low = order.p_low.clone();
 
-			book.cancel_order(order);
+			// If the cancel fails bubble error up.
+			book.cancel_order(order).expect("AHHHH no order to cancel");	// TODO PASS ERROR UP	
 
 			// update min/max if we just cancelled previous min/max
 			if p_high == book.get_max_price() {
@@ -97,29 +118,23 @@ impl QueueProcessor {
 							bids: Arc<Book>, 
 							asks: Arc<Book>, 
 							state: Arc<Mutex<State>>, 
-							duration: u64) -> AsyncTask
+							duration: u64) -> Task
 	{
-	    let task = Interval::new(Instant::now(), Duration::from_millis(duration))
-	        .for_each(move |_| {
-	    		// Obtain lock on the global state and only process if in Process state
-	    		match *state.lock().unwrap() {
-	    			State::Process => {
-	    				let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
-									Arc::clone(&bids),
-									Arc::clone(&asks));
+	    Task::rpt_task(move || {
+	    	match *state.lock().unwrap() {
+				State::Process => {
+					let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
+								Arc::clone(&bids),
+								Arc::clone(&asks));
 
-						for h in handles {
-							h.join().unwrap();
-						}
-						// println!("Processing order queue");
-	    			},
-	    			State::Auction => println!("Can't process order queue because auction!"),
-	    			State::PreAuction => println!("Can't process order queue because pre-auction!"),
-				}
-				Ok(())
-	        })
-	        .map_err(|e| println!("Error processing order iterval: {}", e));
-
-	    Box::new(task)
+					for h in handles {
+						h.join().unwrap();
+					}
+					// println!("Processing order queue");
+				},
+				State::Auction => println!("Can't process order queue because auction!"),
+				State::PreAuction => println!("Can't process order queue because pre-auction!"),
+			}
+	    }, duration)
 	}
 }

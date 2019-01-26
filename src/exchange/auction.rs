@@ -1,12 +1,10 @@
-use crate::controller::{AsyncTask, State};
+use crate::controller::{Task, State};
 use crate::exchange::order_book::Book;
 
 use std::sync::{Mutex, Arc};
 
 use rayon::prelude::*;
-use tokio::prelude::*;
-use tokio::timer::Interval;
-use std::time::{Duration, Instant, SystemTime};
+use crate::utility::get_time;
 
 pub struct Auction {}
 
@@ -100,37 +98,27 @@ impl Auction {
 		}
 	}
 
-	pub fn async_auction_task(bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State>>, duration: u64) -> AsyncTask {
-		let task = Interval::new(Instant::now(),  Duration::from_millis(duration))
-		    .for_each(move |_| {
-		    	{
-		    		// Obtain lock on the global state and switch to Auction mode, will stop
-		    		// the queue from being processed.
-		    		let mut state = state.lock().unwrap();
-		    		*state = State::Auction;
-		    	}
-		    	println!("Starting Auction @{:?}", Auction::get_time());
-		    	if let Some(cross_price) = Auction::bs_cross(Arc::clone(&bids), Arc::clone(&asks)) {
-		    		println!("Found Cross at @{:?} \nP = {}\n", Auction::get_time(), cross_price);
-		    	} else {
-		    		println!("Error, Cross not found\n");
-		    	}
-		    	
-		    	{
-		    		// Change the state back to process to allow the books to be mutated again
-		    		let mut state = state.lock().unwrap();
-		    		*state = State::Process;
-		    	}
-		    	Ok(())
-		    })
-		    .map_err(|e| panic!("Auction Delay error; err={:?}", e));
-
-		Box::new(task)
-	}
-
-	fn get_time() -> Duration {
-		SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-                         .expect("SystemTime::duration_since failed")
+	pub fn async_auction_task(bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State>>, duration: u64) -> Task {
+		Task::rpt_task(move || {
+			{
+	    		// Obtain lock on the global state and switch to Auction mode, will stop
+	    		// the queue from being processed.
+	    		let mut state = state.lock().unwrap();
+	    		*state = State::Auction;
+	    	}
+	    	println!("Starting Auction @{:?}", get_time());
+	    	if let Some(cross_price) = Auction::bs_cross(Arc::clone(&bids), Arc::clone(&asks)) {
+	    		println!("Found Cross at @{:?} \nP = {}\n", get_time(), cross_price);
+	    	} else {
+	    		println!("Error, Cross not found\n");
+	    	}
+	    	
+	    	{
+	    		// Change the state back to process to allow the books to be mutated again
+	    		let mut state = state.lock().unwrap();
+	    		*state = State::Process;
+	    	}
+		}, duration)
 	}
 }
 

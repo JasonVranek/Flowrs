@@ -3,6 +3,7 @@ pub mod exchange;
 pub mod simulation;
 pub mod order;
 pub mod controller;
+pub mod utility;
 
 use crate::exchange::order_book::Book;
 use crate::order::TradeType;
