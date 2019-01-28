@@ -35,7 +35,7 @@ fn main() {
 	controller.push(queue_task);
 
 	// Spawn the tcp server task that listens for incoming orders in JSON format
-	let tcp_server = tcp_listener(Arc::clone(&queue), format!("127.0.0.1:3012"));
+	let tcp_server = tcp_listener(Arc::clone(&queue), format!("127.0.0.1:5000"));
 	controller.push(tcp_server);
 
 

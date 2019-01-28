@@ -1,7 +1,6 @@
 use crate::controller::{Task, State};
 use crate::exchange::order_book::Book;
 
-use std::thread;
 use std::sync::{Mutex, Arc};
 
 use rayon::prelude::*;
