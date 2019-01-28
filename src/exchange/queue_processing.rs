@@ -53,20 +53,30 @@ impl QueueProcessor {
 	    	// add_order acquires the lock on the book before mutating
 	    	book.update_max_price(&order.p_high);
 	    	book.update_min_price(&order.p_low);
-	    	book.add_order(order);
+	    	match book.add_order(order) {
+	    		Ok(()) => {},
+	    		Err(e) => {
+	    			println!("ERROR: {}", e);
+	    			// TODO send an error response over TCP
+	    		},
+	    	}
 	    })
 	}
 
-	// Updates an order in the Bids or Asks Book
+	// Updates an order in the Bids or Asks Book in it's own thread
 	fn process_update(order: Order, book: Arc<Book>) -> JoinHandle<()> {
-		// update min/max if this overwrites current min/max OR this order contains new min/max
-		// ..
-	    // Spawn a new thread to update
+		// update books min/max price if this overwrites current min/max OR this order contains new min/max
 	    thread::spawn(move || {
 	    	let p_high = order.p_high.clone();
 			let p_low = order.p_low.clone();
 	    	// If the order is not found, bubble error up
-	    	book.update_order(order).expect("AHHH no order to update");
+	    	match book.update_order(order) {
+	    		Ok(()) => {},
+	    		Err(e) => {
+	    			println!("ERROR: {}", e);
+	    			// TODO send an error response over TCP
+	    		}
+	    	}
 
 	    	let max_p = book.get_max_price();
 	    	let min_p = book.get_min_price();
@@ -93,14 +103,18 @@ impl QueueProcessor {
 
 	// Cancels the order living in the Bids or Asks Book
 	fn process_cancel(order: Order, book: Arc<Book>) -> JoinHandle<()> {
-		
-	    // Spawn a new thread to cancel and enter
 	    thread::spawn(move || {
 			let p_high = order.p_high.clone();
 			let p_low = order.p_low.clone();
 
 			// If the cancel fails bubble error up.
-			book.cancel_order(order).expect("AHHHH no order to cancel");	// TODO PASS ERROR UP	
+			match book.cancel_order(order) {
+	    		Ok(()) => {},
+	    		Err(e) => {
+	    			println!("ERROR: {}", e);
+	    			// TODO send an error response over TCP
+	    		}
+	    	}
 
 			// update min/max if we just cancelled previous min/max
 			if p_high == book.get_max_price() {

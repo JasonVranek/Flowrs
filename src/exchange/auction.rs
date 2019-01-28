@@ -1,13 +1,14 @@
 use crate::controller::{Task, State};
 use crate::exchange::order_book::Book;
 
+use std::thread;
 use std::sync::{Mutex, Arc};
 
 use rayon::prelude::*;
 use crate::utility::get_time;
 
 
-const EPSILON: f64 =  0.000000000001;
+const EPSILON: f64 =  0.000_000_001;
 
 pub struct Auction {}
 
@@ -15,8 +16,8 @@ impl Auction {
 	// Iterate over each order in parallel and compute
 	// the closure for each. 
 	pub fn calc_aggs(p: f64, bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {
-		let bids = bids.orders.lock().expect("ERROR: No bids to aggregate");
-		let asks = asks.orders.lock().expect("ERROR: No bids to aggregate");
+		let bids = bids.orders.lock().expect("ERROR: No bids book");
+		let asks = asks.orders.lock().expect("ERROR: No asks book");
 
 		let agg_demand: f64 = bids.par_iter()
 		    .map(|order| {
@@ -43,6 +44,9 @@ impl Auction {
 		(agg_demand, agg_supply)
 	}
 
+	/// Calculates the market clearing price from the bids and asks books. Uses a 
+	/// binary search to find the intersection point between the aggregates supply and 
+	/// demand curves. 
 	pub fn bs_cross(bids: Arc<Book>, asks: Arc<Book>) -> Option<f64> {
 		// get_price_bounds obtains locks on the book's prices
 	    let (mut left, mut right) = Auction::get_price_bounds(Arc::clone(&bids), Arc::clone(&asks));
@@ -57,10 +61,10 @@ impl Auction {
 	    	let (dem, sup) = Auction::calc_aggs(index, Arc::clone(&bids), Arc::clone(&asks));
 	    	// println!("price_index: {}, dem: {}, sup: {}", index, dem, sup);
 
-	    	if Auction::greater_than_e(&dem, &sup) {
+	    	if Auction::greater_than_e(&dem, &sup) {  		// dev > sup
 	    		// We are left of the crossing point
 	    		left = index;
-	    	} else if Auction::less_than_e(&dem, &sup) {
+	    	} else if Auction::less_than_e(&dem, &sup) {	// sup > dem
 	    		// We are right of the crossing point
 	    		right = index;
 	    	} else {
@@ -74,6 +78,31 @@ impl Auction {
 	    	}
 	    }
 	    None
+	}
+
+	/// Schedules an auction to run on an interval determined by the duration parameter in milliseconds.
+	/// Outputs a task that will be dispatched asynchronously via the controller module.
+	pub fn async_auction_task(bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State>>, duration: u64) -> Task {
+		Task::rpt_task(move || {
+			{
+	    		// Obtain lock on the global state and switch to Auction mode, will stop
+	    		// the queue from being processed.
+	    		let mut state = state.lock().unwrap();
+	    		*state = State::Auction;
+	    	}
+	    	println!("Starting Auction @{:?}", get_time());
+	    	if let Some(cross_price) = Auction::bs_cross(Arc::clone(&bids), Arc::clone(&asks)) {
+	    		println!("Found Cross at @{:?} \nP = {}\n", get_time(), cross_price);
+	    	} else {
+	    		println!("Error, Cross not found\n");
+	    	}
+	    	
+	    	{
+	    		// Change the state back to process to allow the books to be mutated again
+	    		let mut state = state.lock().unwrap();
+	    		*state = State::Process;
+	    	}
+		}, duration)
 	}
 
 	pub fn get_price_bounds(bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {		
@@ -102,7 +131,7 @@ impl Auction {
 	}
 
 	// true if a > b
-	fn greater_than_e(a: &f64, b: &f64) -> bool {
+	pub fn greater_than_e(a: &f64, b: &f64) -> bool {
 		let a = a.abs();
 		let b = b.abs();
 	    if (a - b).abs() > EPSILON && a - b > 0.0 {
@@ -113,7 +142,7 @@ impl Auction {
 	}
 
 	// true if a < b
-	fn less_than_e(a: &f64, b: &f64) -> bool {
+	pub fn less_than_e(a: &f64, b: &f64) -> bool {
 		let a = a.abs();
 		let b = b.abs();
 	    if (a - b).abs() > EPSILON && a - b < 0.0 {
@@ -123,37 +152,12 @@ impl Auction {
 	    }
 	}
 
-	fn equal_e(a: &f64, b: &f64) -> bool {
+	pub	fn equal_e(a: &f64, b: &f64) -> bool {
 	    if (a - b).abs() < EPSILON {
 	    	return true;
 	    } else {
 	    	return false;
 	    }
-	}
-
-
-
-	pub fn async_auction_task(bids: Arc<Book>, asks: Arc<Book>, state: Arc<Mutex<State>>, duration: u64) -> Task {
-		Task::rpt_task(move || {
-			{
-	    		// Obtain lock on the global state and switch to Auction mode, will stop
-	    		// the queue from being processed.
-	    		let mut state = state.lock().unwrap();
-	    		*state = State::Auction;
-	    	}
-	    	println!("Starting Auction @{:?}", get_time());
-	    	if let Some(cross_price) = Auction::bs_cross(Arc::clone(&bids), Arc::clone(&asks)) {
-	    		println!("Found Cross at @{:?} \nP = {}\n", get_time(), cross_price);
-	    	} else {
-	    		println!("Error, Cross not found\n");
-	    	}
-	    	
-	    	{
-	    		// Change the state back to process to allow the books to be mutated again
-	    		let mut state = state.lock().unwrap();
-	    		*state = State::Process;
-	    	}
-		}, duration)
 	}
 }
 
@@ -175,6 +179,18 @@ fn test_min_max_float() {
 	let b = 10.0;
 	assert_eq!(2.0, Auction::min_float(&a, &b));
 	assert_eq!(10.0, Auction::max_float(&a, &b));
+}
+
+#[test]
+fn test_float_helpers() {
+	let a = 2.0;
+	let b = 10.0;
+	assert_eq!(2.0, Auction::min_float(&a, &b));
+	assert_eq!(10.0, Auction::max_float(&a, &b));
+
+	assert!(!Auction::greater_than_e(&a, &b));
+	assert!(Auction::less_than_e(&a, &b));
+	assert!(Auction::equal_e(&(1.1 + 0.4), &1.5));
 }
 
 

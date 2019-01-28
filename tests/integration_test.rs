@@ -151,7 +151,7 @@ pub fn test_find_crossing_price() {
 	assert_eq!(asks_book.len(), 100);
 
 	let cross_price = Auction::bs_cross(Arc::clone(&bids_book), Arc::clone(&asks_book)).unwrap();
-	assert_eq!(cross_price, 81.09048166081236);
+	assert!(Auction::equal_e(&cross_price, &81.09048166081236));
 }
 
 

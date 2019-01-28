@@ -81,7 +81,7 @@ impl JsonOrder {
 
 	// Make an Order from a JSON
 	fn order_from_json(msg: serde_json::Value) -> Option<Order> {
-		let typed_json: JsonOrder = serde_json::from_value(msg).unwrap();
+		let typed_json: JsonOrder = serde_json::from_value(msg).expect("Couldn't make JSON");
 		// Parse JSON body into enums compatible with flow market
 		let ot = match typed_json.order_type.to_lowercase().as_ref() {
 			"enter" => OrderType::Enter,

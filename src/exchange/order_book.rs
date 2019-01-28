@@ -65,7 +65,7 @@ impl Book {
     /// Cancels the existing order in the order book if it exists
     pub fn cancel_order(&self, order: Order) -> Result<(), &'static str> {
     	// Acquire the lock
-        let mut orders = self.orders.lock().unwrap();
+        let mut orders = self.orders.lock().expect("couldn't acquire lock cancelling order");
         // Search for existing order's index
         let order_index: Option<usize> = orders.iter().position(|o| &o.trader_id == &order.trader_id);
 
@@ -151,8 +151,8 @@ impl Book {
 #[cfg(test)]
 mod tests {
 	use super::*;
-    use crate::order::{Order, TradeType, OrderType};
-    use std::sync::{Mutex, Arc};
+    use crate::order::{TradeType};
+    use std::sync::Arc;
     use std::thread;
 
 	#[test]
