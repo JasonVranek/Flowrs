@@ -11,16 +11,28 @@ pub fn main() {
 
     let mut controller = Controller::new();
 
-    let address = format!("127.0.0.1:6142");
+    let tcp_address = format!("127.0.0.1:3012");
+
+    env_logger::init();
 
     // Establish the async tasks to repeatedly send orders over tcp
-    let arrivals = RandBehavior::arrival_interval(Arc::clone(&traders), 500, address.clone());
-    let updates = RandBehavior::update_interval(Arc::clone(&traders), 1000, address.clone());
-    let cancels = RandBehavior::cancel_interval(Arc::clone(&traders), 2000, address.clone());
+    let tcp_arrivals = RandBehavior::tcp_arrival_interval(Arc::clone(&traders), 500, tcp_address.clone()); 
+    let tcp_updates = RandBehavior::tcp_update_interval(Arc::clone(&traders), 1000, tcp_address.clone());
+    let tcp_cancels = RandBehavior::tcp_cancel_interval(Arc::clone(&traders), 2000, tcp_address.clone());
 
-    controller.push(arrivals);
-    controller.push(updates);
-    controller.push(cancels);
+    controller.push(tcp_arrivals);
+    controller.push(tcp_updates);
+    controller.push(tcp_cancels);
+
+    let ws_address: &'static str = "ws://127.0.0.1:3015";
+
+    let ws_arrivals = RandBehavior::ws_arrival_interval(Arc::clone(&traders), 500, &ws_address); 
+    let ws_updates = RandBehavior::ws_update_interval(Arc::clone(&traders), 1000, &ws_address);
+    let ws_cancels = RandBehavior::ws_cancel_interval(Arc::clone(&traders), 2000, &ws_address);
+
+    controller.push(ws_arrivals);
+    controller.push(ws_updates);
+    controller.push(ws_cancels);
 
     // Start the tokio runtime which will repeatedly send orders over tcp
     controller.run();

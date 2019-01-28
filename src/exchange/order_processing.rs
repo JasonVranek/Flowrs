@@ -120,8 +120,6 @@ impl JsonOrder {
 
 	// Turn an order into JSON from its params
 	pub fn order_to_json(order: &Order) -> serde_json::Value {
-		
-
 		let ot = match order.order_type {
             OrderType::Enter => "enter",
             OrderType::Update => "update",

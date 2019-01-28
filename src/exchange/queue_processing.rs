@@ -135,14 +135,14 @@ impl QueueProcessor {
 							duration: u64) -> Task
 	{
 	    Task::rpt_task(move || {
-	    	match *state.lock().unwrap() {
+	    	match *state.lock().expect("Couldn't lock state in queue task") {
 				State::Process => {
 					let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
 								Arc::clone(&bids),
 								Arc::clone(&asks));
 
 					for h in handles {
-						h.join().unwrap();
+						h.join().expect("Couldn't join queue tasks");
 					}
 					// println!("Processing order queue");
 				},

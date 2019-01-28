@@ -26,7 +26,6 @@ pub fn tcp_listener(queue: Arc<Queue>, address: String) -> Task {
 
         // Spawn a task that converts JSON to an Order and adds to queue
         tokio::spawn(deserialized.for_each(move |msg| {
-            // println!("GOT: {:?} @ {:?}", msg, flow_rs::get_time());
             JsonOrder::process_new(msg, Arc::clone(&queue));
             Ok(())
         }));

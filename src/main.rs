@@ -1,6 +1,7 @@
 extern crate flow_rs;
 extern crate tokio;
 
+use flow_rs::io::ws_json::ws_listener;
 use flow_rs::io::tcp_json::tcp_listener;
 use flow_rs::exchange::queue_processing::QueueProcessor;
 use flow_rs::exchange::auction::Auction;
@@ -22,6 +23,7 @@ fn main() {
 	let auction_task = Auction::async_auction_task(Arc::clone(&bids_book), 
 		                          Arc::clone(&asks_book), 
 		                          Arc::clone(&state), batch_interval);
+	controller.push(auction_task);
 
 	// create a task that processes order queue every queue_interval (milliseconds)
 	let queue_interval = 100;
@@ -30,14 +32,16 @@ fn main() {
 		                                             Arc::clone(&asks_book),
 		                                             Arc::clone(&state),
 		                                             queue_interval);
+	controller.push(queue_task);
 
 	// Spawn the tcp server task that listens for incoming orders in JSON format
-	let tcp_server = tcp_listener(Arc::clone(&queue), format!("127.0.0.1:6142"));
-
-	// Push all of our tasks to the controller
-	controller.push(auction_task);
-	controller.push(queue_task);
+	let tcp_server = tcp_listener(Arc::clone(&queue), format!("127.0.0.1:3012"));
 	controller.push(tcp_server);
+
+
+	// Spawn the websocket server thread that listens for incoming orders in JSON format
+	let address: &'static str = "127.0.0.1:3015";
+	let _ws_server = ws_listener(Arc::clone(&queue), &address);
 	
 	// Loop forever asynchronously running tasks
 	controller.run();
